@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 环境
+.env
+.venv/
+venv/
+
+# 数据库
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+# 但保留 tickets.db（生产库）
+!tickets.db
+
+# 上传文件
+static/uploads/
+
+# 日志
+*.log
+/tmp/
+logs/pytest_*.log
+logs/pip_install_*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+
+# MCP 数据
+mcp_data/
+
+# 临时文件
+tmp_*.html
+
+# 第三方 MCP 服务器（非业务代码）
+mcp-servers/
+
+# .trae IDE 技能缓存
+.trae/
+
+# .workbuddy
+.workbuddy/
+
+# 备份
+backups/*.db.*

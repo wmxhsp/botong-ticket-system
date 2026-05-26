@@ -1,0 +1,10 @@
+{
+  "token": "",
+  "enabled": false,
+  "push_events": {
+    "reminder": true,
+    "todo": true,
+    "subscription": true,
+    "overdue": true
+  }
+}

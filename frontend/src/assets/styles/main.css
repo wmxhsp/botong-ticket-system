@@ -1,0 +1,471 @@
+/* ================================================
+   博通 Botong — Vue SPA 主样式
+   引用后端 Flask 提供的 Bootstrap + 设计系统
+   ================================================ */
+
+/* Bootstrap and Bootstrap Icons are loaded by Flask template (base.html) */
+/* Do NOT import from CDN here - it causes CSS cascade conflicts with dark mode */
+
+@import url('/static/css/design.css?v=3.5');
+
+/* ================================================
+   自定义工具类
+   ================================================ */
+
+/* 触摸友好：增大可点击区域 */
+@media (hover: none) and (pointer: coarse) {
+  .btn, 
+  .nav-link,
+  .dropdown-item,
+  table td a,
+  .list-group-item {
+    min-height: 44px;
+    line-height: 1.4;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  .bt-touchable {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+    transition: transform 0.15s ease;
+    cursor: pointer;
+  }
+
+  .bt-touchable:active {
+    transform: scale(0.97);
+    opacity: 0.8;
+  }
+
+  .card, .stat-card, .list-group-item {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.15);
+  }
+
+  .card:active, .stat-card:active, .list-group-item:active {
+    background-color: rgba(59, 130, 246, 0.05);
+  }
+}
+
+/* 表单验证错误状态 */
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: var(--bt-danger);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12'%3e%3cpath fill='%23dc3545' d='M6 0a6 6 0 100 12A6 6 0 006 0zm-.75 3.75a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0v-3.5zm.75 6a.75.75 0 100-1.5.75.75 0 000 1.5z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  padding-right: 36px;
+}
+
+.form-control.is-valid,
+.form-select.is-valid {
+  border-color: var(--bt-success);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='M2.3 6.73L.6 5a.35.35 0 010-.45c.2-.2.5-.2.7 0l1.4 1.44 3.9-4.4a.5.5 0 01.7 0c.2.2.2.5 0 .7l-4.3 4.96c-.15.17-.38.27-.6.27z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  padding-right: 36px;
+}
+
+.invalid-feedback {
+  display: none;
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+  color: var(--bt-danger);
+}
+
+.form-control.is-invalid ~ .invalid-feedback,
+.form-select.is-invalid ~ .invalid-feedback {
+  display: block;
+}
+
+/* 加载状态 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: inherit;
+}
+
+[data-theme="dark"] .loading-overlay {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--bt-gray-200);
+  border-top-color: var(--bt-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 无限滚动加载指示器 */
+.scroll-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--bt-text-muted);
+  gap: 8px;
+}
+
+.scroll-loading .spinner-border {
+  width: 20px;
+  height: 20px;
+}
+
+/* 返回顶部按钮 */
+.bt-scroll-top {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bt-primary);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  z-index: 99;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.bt-scroll-top.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.bt-scroll-top:hover {
+  background: var(--bt-primary-hover);
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .bt-scroll-top {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 图片预览暗色模式适配 */
+[data-theme="dark"] .photo-preview-overlay {
+  background: rgba(0, 0, 0, 0.95);
+}
+
+[data-theme="dark"] .photo-preview-info {
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--bt-text-body);
+}
+
+[data-theme="dark"] .photo-preview-close,
+[data-theme="dark"] .photo-preview-nav {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .photo-preview-close:hover,
+[data-theme="dark"] .photo-preview-nav:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 确认对话框暗色模式适配 */
+[data-theme="dark"] .confirm-dialog {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+}
+
+[data-theme="dark"] .confirm-input .form-control {
+  background: var(--bt-gray-100);
+  border-color: var(--bt-gray-300);
+  color: var(--bt-text-body);
+}
+
+/* 下拉刷新提示 */
+.pull-to-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  color: var(--bt-text-muted);
+  font-size: 14px;
+}
+
+.pull-to-refresh .arrow {
+  margin-right: 8px;
+  transition: transform 0.3s ease;
+}
+
+.pull-to-refresh.pulling .arrow {
+  transform: rotate(180deg);
+}
+
+/* 骨架屏暗色模式 */
+[data-theme="dark"] .bt-skeleton {
+  background: linear-gradient(90deg, 
+    var(--bt-gray-700) 25%, 
+    var(--bt-gray-600) 50%, 
+    var(--bt-gray-700) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* 表格暗色模式 */
+[data-theme="dark"] .bt-table {
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .bt-table tbody tr:nth-child(even) {
+  background-color: var(--bt-gray-100);
+}
+
+[data-theme="dark"] .bt-table thead th {
+  background: var(--bt-gray-100);
+  border-bottom-color: var(--bt-gray-300);
+}
+
+[data-theme="dark"] .bt-table tbody td {
+  border-bottom-color: var(--bt-gray-200);
+}
+
+/* 模态框暗色模式 */
+[data-theme="dark"] .modal-content {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom-color: var(--card-border);
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top-color: var(--card-border);
+}
+
+/* Toast 暗色模式 */
+[data-theme="dark"] .bt-toast {
+  background: var(--card-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .bt-toast .toast-close {
+  color: var(--bt-gray-400);
+}
+
+[data-theme="dark"] .bt-toast .toast-close:hover {
+  background: var(--bt-gray-100);
+}
+
+/* ================================================
+   移动端响应式优化样式
+   ================================================ */
+
+@media (max-width: 768px) {
+  .bt-content {
+    padding: 8px !important;
+  }
+  
+  .card {
+    padding: 12px !important;
+  }
+  
+  .bt-table {
+    font-size: 12px;
+  }
+  
+  .bt-table th,
+  .bt-table td {
+    padding: 6px 8px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .btn {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .btn-sm {
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .form-control {
+    font-size: 14px;
+    height: 40px;
+    padding: 8px 12px;
+  }
+  
+  .form-select {
+    font-size: 14px;
+    height: 40px;
+  }
+  
+  .bt-page-title h2 {
+    font-size: 18px;
+  }
+  
+  .bt-page-title p {
+    font-size: 13px;
+  }
+  
+  #globalSearchWrap {
+    max-width: 250px !important;
+  }
+  
+  .stat-value {
+    font-size: 20px !important;
+  }
+  
+  .stat-label {
+    font-size: 12px;
+  }
+  
+  .modal-dialog {
+    margin: 10px;
+    max-width: calc(100vw - 20px);
+  }
+  
+  .badge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  
+  .bt-data-tag {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  
+  .sidebar-collapsed .bt-content {
+    margin-left: 56px;
+  }
+}
+
+@media (max-width: 576px) {
+  .bt-sidebar {
+    position: fixed;
+    left: -250px;
+    transition: left 0.3s ease;
+    z-index: 100;
+  }
+  
+  .bt-sidebar.open {
+    left: 0;
+  }
+  
+  .bt-content {
+    margin-left: 0 !important;
+  }
+  
+  .bt-top-bar #globalSearchWrap {
+    display: none;
+  }
+  
+  .d-flex.gap-2 {
+    flex-wrap: wrap;
+  }
+  
+  .list-group-item {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .bt-breadcrumbs {
+    font-size: 12px;
+  }
+  
+  .d-none.d-sm-inline {
+    display: none !important;
+  }
+  
+  .bt-page-title.d-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+  
+  .bt-page-title.d-flex .btn {
+    width: 100%;
+  }
+}
+
+@media (hover: none) {
+  .btn:active {
+    transform: scale(0.98);
+  }
+  
+  .list-group-item:active {
+    background-color: var(--bt-gray-100);
+  }
+  
+  .card:active {
+    transform: scale(0.99);
+  }
+}
+
+@media (prefers-contrast: high) {
+  .btn {
+    border-width: 2px;
+  }
+  
+  .card {
+    border-width: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .bt-sidebar,
+  .bt-top-bar,
+  .btn,
+  .modal-backdrop,
+  .ToastContainer {
+    display: none !important;
+  }
+  
+  .bt-content {
+    margin-left: 0 !important;
+  }
+  
+  body {
+    font-size: 12pt;
+  }
+  
+  .card {
+    break-inside: avoid;
+  }
+}

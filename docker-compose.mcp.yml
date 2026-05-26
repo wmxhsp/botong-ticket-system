@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  codegeex-mcp:
+    image: codegeex/mcp-server:latest  # 替换为实际镜像
+    container_name: codegeex-mcp
+    ports:
+      - "8080:8080"
+    environment:
+      # MCP 服务器使用的 SQLite 数据文件路径（容器内）
+      - MCP_SQLITE_PATH=/data/mcp/tickets.db
+      - MCP_API_KEY=${MCP_API_KEY:-changeme}
+    volumes:
+      # 将项目的 tickets 快照挂载到容器，让 MCP 可访问工单数据（只读快照，避免 WAL 可见性问题）
+      - ./tickets_snapshot.db:/data/mcp/tickets.db:ro
+      - ./mcp_data:/data/mcp
+    restart: unless-stopped

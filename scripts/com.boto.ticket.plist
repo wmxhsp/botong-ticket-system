@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>BOTO_ACCESS_PASSWORD</key>
+		<string>e4fbb859a33684c79335451972c5fb9170ca6c1b6e89f54eb3d88aa7db299d3a</string>
+		<key>BOTO_NO_RATE_LIMIT</key>
+		<string>1</string>
+	</dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.boto.ticket</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Library/Developer/CommandLineTools/usr/bin/python3</string>
+		<string>/Users/supeng/WorkBuddy/Claw/new-ticket-system/app.py</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/boto-app.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/boto-app.log</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/supeng/WorkBuddy/Claw/new-ticket-system</string>
+</dict>
+</plist>

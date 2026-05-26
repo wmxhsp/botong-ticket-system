@@ -1,0 +1,40 @@
+{
+  "rates": {
+    "蒙古族中学": {
+      "hourly": 60,
+      "annual": 0,
+      "contact": "崔主任",
+      "type": "",
+      "scope": []
+    },
+    "集宁京能电力": {
+      "hourly": 100,
+      "annual": 0,
+      "contact": "李官胜",
+      "type": "国企",
+      "scope": []
+    },
+    "网吧": {
+      "hourly": 0,
+      "annual": 2000,
+      "contact": "",
+      "type": "",
+      "scope": [
+        "服务器维护",
+        "网络设备维护",
+        "软件维护"
+      ]
+    },
+    "电竞": {
+      "hourly": 0,
+      "annual": 2000,
+      "contact": "",
+      "type": "",
+      "scope": [
+        "服务器维护",
+        "网络设备维护",
+        "软件维护"
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "webhook_url": "",
+  "enabled": false,
+  "push_events": {
+    "reminder": true,
+    "todo": false,
+    "subscription": true,
+    "overdue": true
+  },
+  "time_window": {
+    "start": "08:00",
+    "end": "22:00"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "critical_threshold": 0,
+  "warning_threshold": 2,
+  "info_threshold_percent": 0.2,
+  "check_interval_hours": 24,
+  "notify_methods": [
+    "console"
+  ]
+}

@@ -1,0 +1,61 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    container_name: botong-web
+    environment:
+      - BOTO_PORT=5053
+      - BOTO_SECRET_KEY=${BOTO_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - BOTO_CACHE_TYPE=RedisCache
+      - BOTO_REDIS_URL=redis://redis:6379/1
+    ports:
+      - "5053:5053"
+    depends_on:
+      - redis
+    volumes:
+      - .:/app:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5053/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    build: .
+    container_name: botong-worker
+    command: ["python3", "-m", "rq", "worker", "--url", "redis://redis:6379/0", "default"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - .:/app:rw
+
+  redis:
+    image: redis:7-alpine
+    container_name: botong-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: botong-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+
+volumes:
+  redis-data:

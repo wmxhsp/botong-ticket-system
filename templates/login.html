@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <title>博通 - 身份验证</title>
+  <link href="/static/css/bootstrap.min.css?v=3.0" rel="stylesheet">
+  <link href="/static/css/bootstrap-icons.min.css?v=3.0" rel="stylesheet">
+  <link href="/static/css/design.css?v=3.5" rel="stylesheet">
+  <style>
+    /* ===== 登录页全局样式 ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bt-body-bg, #f0f2f5);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 16px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ===== 背景圆装饰 ===== */
+    .login-bg-circle {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .login-bg-circle.c1 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+      top: -100px; right: -100px;
+      animation: floatCircle1 8s ease-in-out infinite;
+    }
+
+    .login-bg-circle.c2 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%);
+      bottom: -80px; left: -80px;
+      animation: floatCircle2 10s ease-in-out infinite;
+    }
+
+    .login-bg-circle.c3 {
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation: floatCircle3 12s ease-in-out infinite;
+    }
+
+    @keyframes floatCircle1 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-30px, 30px); }
+    }
+
+    @keyframes floatCircle2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(30px, -30px); }
+    }
+
+    @keyframes floatCircle3 {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* ===== 登录卡片 ===== */
+    .login-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px 36px;
+      box-shadow:
+        0 1px 3px rgba(0,0,0,0.04),
+        0 10px 40px -5px rgba(0,0,0,0.08);
+      border: 1px solid var(--bt-gray-200);
+      position: relative;
+      overflow: hidden;
+      animation: loginCardIn 0.5s ease;
+    }
+
+    @keyframes loginCardIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* 卡片顶部装饰条 */
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--bt-primary-400), var(--bt-primary-600), var(--bt-primary-800));
+    }
+
+    /* ===== Logo 区域 ===== */
+    .login-brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-brand-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--bt-primary-500), var(--bt-primary-700));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 28px;
+      color: white;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.25);
+    }
+
+    .login-brand h4 {
+      font-weight: 700;
+      color: var(--bt-text-heading, #1f2937);
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .login-brand p {
+      color: var(--bt-text-muted, #6b7280);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    /* ===== 表单 ===== */
+    .login-form .form-group {
+      margin-bottom: 20px;
+    }
+
+    .login-form label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--bt-text-body, #4b5563);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .login-form .input-wrapper {
+      position: relative;
+    }
+
+    .login-form .input-wrapper .form-control {
+      height: 48px;
+      padding: 10px 40px 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid var(--bt-gray-200, #e5e7eb);
+      font-size: 15px;
+      transition: all 0.2s ease;
+      background: var(--bt-gray-50, #f9fafb);
+    }
+
+    .login-form .input-wrapper .form-control:focus {
+      border-color: var(--bt-primary-500);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    .login-form .input-wrapper .form-control::placeholder {
+      color: var(--bt-gray-400, #9ca3af);
+      font-size: 14px;
+    }
+
+    .login-form .input-wrapper .toggle-pwd {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--bt-gray-400);
+      cursor: pointer;
+      padding: 8px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+    }
+
+    .login-form .input-wrapper .toggle-pwd:hover {
+      color: var(--bt-gray-600);
+    }
+
+    /* ===== 提交按钮 ===== */
+    .login-form .btn-submit {
+      width: 100%;
+      height: 48px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--bt-primary-500), var(--bt-primary-600));
+      border: none;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-form .btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+    }
+
+    .login-form .btn-submit:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .login-form .btn-submit.loading {
+      pointer-events: none;
+      opacity: 0.8;
+    }
+
+    .login-form .btn-submit .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: btnSpin 0.6s linear infinite;
+    }
+
+    .login-form .btn-submit.loading .spinner {
+      display: inline-block;
+    }
+
+    .login-form .btn-submit.loading .btn-text {
+      display: none;
+    }
+
+    @keyframes btnSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ===== 错误提示 ===== */
+    .login-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #991b1b;
+      animation: errorSlideIn 0.3s ease;
+    }
+
+    @keyframes errorSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-error i {
+      font-size: 18px;
+      color: #ef4444;
+      flex-shrink: 0;
+    }
+
+    /* ===== 底部信息 ===== */
+    .login-footer {
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    .login-footer small {
+      color: var(--bt-text-muted, #9ca3af);
+      font-size: 11px;
+    }
+
+    .login-footer small i {
+      margin-right: 4px;
+    }
+
+    /* ===== 暗色模式 ===== */
+    [data-theme="dark"] .login-card {
+      background: var(--bt-card-bg, #1e293b);
+      border-color: var(--bt-card-border, #334155);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 10px 40px -5px rgba(0,0,0,0.4);
+    }
+
+    [data-theme="dark"] .login-form .input-wrapper .form-control {
+      background: var(--bt-input-bg, #1a2332);
+      border-color: var(--bt-input-border, #475569);
+      color: var(--bt-input-color, #e2e8f0);
+    }
+
+    [data-theme="dark"] .login-form .input-wrapper .form-control:focus {
+      background: var(--bt-input-bg, #1a2332);
+      border-color: var(--bt-primary-500);
+    }
+
+    [data-theme="dark"] .login-error {
+      background: #450a0a;
+      border-color: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    [data-theme="dark"] .login-error i {
+      color: #fca5a5;
+    }
+
+    [data-theme="dark"] .login-form label {
+      color: var(--bt-text-body, #cbd5e1);
+    }
+
+    [data-theme="dark"] .login-brand p {
+      color: var(--bt-text-muted, #64748b);
+    }
+
+    [data-theme="dark"] .login-brand h4 {
+      color: var(--bt-text-heading, #f1f5f9);
+    }
+
+    [data-theme="dark"] .login-bg-circle.c1 {
+      background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%);
+    }
+
+    /* ===== 响应式 ===== */
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 28px 24px;
+        border-radius: 14px;
+      }
+
+      .login-brand-icon {
+        width: 52px;
+        height: 52px;
+        font-size: 22px;
+      }
+
+      .login-brand { margin-bottom: 24px; }
+
+      .login-brand h4 { font-size: 18px; }
+
+      .login-form .btn-submit {
+        height: 44px;
+        font-size: 14px;
+      }
+
+      .login-bg-circle.c1 { width: 250px; height: 250px; }
+      .login-bg-circle.c2 { width: 200px; height: 200px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .login-card,
+      .login-error,
+      .login-bg-circle {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 背景装饰 -->
+  <div class="login-bg-circle c1"></div>
+  <div class="login-bg-circle c2"></div>
+  <div class="login-bg-circle c3"></div>
+
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-brand-icon">捷</div>
+        <h4>博通 Botong</h4>
+        <p>售后管理系统 · 请输入访问密码</p>
+      </div>
+
+      <!-- 错误提示 -->
+      {% if error %}
+      <div class="login-error">
+        <i class="bi bi-shield-exclamation"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form class="login-form" method="POST" id="loginForm" autocomplete="off">
+        <div class="form-group">
+          <label for="pwdInput">访问密码</label>
+          <div class="input-wrapper">
+            <input
+              class="form-control"
+              id="pwdInput"
+              name="pwd"
+              type="password"
+              placeholder="请输入系统密码"
+              required
+              autofocus
+              autocomplete="current-password"
+            >
+            <button type="button" class="toggle-pwd" onclick="togglePassword()" tabindex="-1" title="显示/隐藏密码">
+              <i class="bi bi-eye" id="pwdToggleIcon"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit" id="submitBtn">
+          <span class="spinner"></span>
+          <span class="btn-text"><i class="bi bi-box-arrow-in-right me-1"></i>进入系统</span>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <small><i class="bi bi-lock"></i>仅限内部网络访问</small>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/bootstrap.bundle.min.js?v=3.0"></script>
+  <script>
+    // ===== 暗色模式初始化 =====
+    (function() {
+      var theme = localStorage.getItem('bt_theme') || 'auto';
+      document.documentElement.setAttribute('data-theme', theme);
+
+      // 监听系统偏好
+      if (theme === 'auto') {
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        mq.addEventListener('change', function() {
+          document.documentElement.setAttribute('data-theme', 'auto');
+        });
+      }
+    })();
+
+    // ===== 密码显示切换 =====
+    function togglePassword() {
+      var input = document.getElementById('pwdInput');
+      var icon = document.getElementById('pwdToggleIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+      }
+    }
+
+    // ===== 表单提交加载状态 =====
+    document.getElementById('loginForm').addEventListener('submit', function() {
+      var btn = document.getElementById('submitBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+    });
+
+    // ===== 键盘快捷键: Enter 提交 =====
+    document.getElementById('pwdInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('loginForm').requestSubmit();
+      }
+    });
+  </script>
+</body>
+</html>

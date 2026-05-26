@@ -1,0 +1,7 @@
+{
+  "auto_generate_invoice": true,
+  "auto_tax_calc": true,
+  "default_tax_rate": 0.06,
+  "payment_terms_days": 30,
+  "auto_remind_before_days": 7
+}

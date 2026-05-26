@@ -1,0 +1,94 @@
+{
+    "mcpServers": {
+        "Framelink Figma MCP": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "figma-developer-mcp",
+                "--stdio"
+            ],
+            "env": {
+                "FIGMA_API_KEY": "<your-figma-api-key>"
+            }
+        },
+        "Redis": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-redis",
+                "redis://localhost:6379"
+            ]
+        },
+        "GitHub": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-github"
+            ],
+            "env": {
+                "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
+            }
+        },
+        "SQLite": {
+            "command": "uvx",
+            "args": [
+                "mcp-server-sqlite",
+                "--db-path",
+                "/Users/supeng/Documents/botong-ticket-system/tickets.db"
+            ]
+        },
+        "Filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "/Users/supeng/Documents/botong-ticket-system"
+            ]
+        },
+        "Fetch": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-fetch"
+            ]
+        },
+        "Time": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-time"
+            ]
+        },
+        "Everything": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-everything"
+            ],
+            "workingDirectory": "/Users/supeng/Documents/botong-ticket-system"
+        },
+        "Slack": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-slack"
+            ],
+            "env": {
+                "SLACK_BOT_TOKEN": "<your-slack-bot-token>",
+                "SLACK_TEAM_ID": "<your-team-id>"
+            }
+        },
+        "Sequential Thinking": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-sequential-thinking"
+            ]
+        }
+    },
+    "customPrompts": {
+        "code_review": "请对 {files} 进行代码审查，重点检查安全性、架构规范和最佳实践。",
+        "test_analysis": "请分析 {files} 的测试覆盖率并提供改进建议。",
+        "api_design": "请审查 API 设计并提供 RESTful 规范建议。"
+    }
+}

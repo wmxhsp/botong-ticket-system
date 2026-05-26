@@ -1,0 +1,48 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:vue/vue3-recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "warn",
+    "vue/multi-word-component-names": "off",
+    "vue/no-v-html": "warn",
+    "no-prototype-builtins": "off",
+    "vue/require-default-prop": "warn",
+    "vue/require-prop-types": "warn",
+    "vue/component-tags-order": ["error", {
+      "order": ["script", "template", "style"]
+    }],
+    "vue/block-order": ["error", {
+      "order": ["script", "template", "style"]
+    }],
+    "vue/component-name-in-template-casing": ["warn", "PascalCase", {
+      "registeredComponentsOnly": true,
+      "ignores": []
+    }],
+    "no-debugger": "error",
+    "no-alert": "error",
+    "prefer-const": "warn",
+    "no-var": "error",
+    "object-shorthand": "warn",
+    "quote-props": ["warn", "as-needed"],
+    "arrow-spacing": ["warn", { "before": true, "after": true }],
+    "comma-dangle": ["warn", "never"],
+    "semi": ["warn", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "indent": ["warn", 2, { "SwitchCase": 1 }],
+    "max-len": ["warn", { "code": 120, "tabWidth": 2, "ignoreUrls": true }],
+    "no-trailing-spaces": "warn",
+    "eol-last": ["warn", "always"]
+  }
+}
