@@ -8,6 +8,9 @@
       <button class="btn btn-sm btn-primary" @click="showForm = true">
         <i class="bi bi-plus-lg"></i> 新建
       </button>
+      <button class="btn btn-sm btn-outline-success ms-2" @click="doExport">
+        <i class="bi bi-download"></i> 导出
+      </button>
     </div>
 
     <!-- 新建表单 -->
@@ -97,9 +100,11 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'Clients' })
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { clientApi } from '@/api/clients'
+import { toolsApi, downloadBlob } from '@/api/tools'
 import { useToast } from '@/composables/useToast'
 
 const { show: showToast } = useToast()
@@ -152,5 +157,16 @@ async function createClient() {
 
 function goDetail(c) {
   if (c.name) router.push('/clients/' + encodeURIComponent(c.name))
+}
+
+async function doExport() {
+  try {
+    const res = await toolsApi.exportClients()
+    const blob = res.data || res
+    downloadBlob(blob, '客户导出.csv')
+    showToast('客户数据已导出', 'success')
+  } catch (e) {
+    showToast('导出失败: ' + (e.response?.data?.error || e.message), 'danger')
+  }
 }
 </script>

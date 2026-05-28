@@ -2,6 +2,7 @@
 博通 — 访问认证中间件
 Tailscale 外网密码保护：HMAC 签名 Token + Cookie + Header
 支持运行时修改密码、Token 自动续期、plist 同步
+暴力破解防护使用 SQLite 存储（并发安全）
 """
 
 import os
@@ -12,34 +13,34 @@ import time
 import logging
 import secrets
 import platform
+import sqlite3
 from pathlib import Path
 
-from flask import request, Response, render_template
+from flask import request, Response, render_template, g
 
 logger = logging.getLogger(__name__)
 
-# ── 配置 ──
 _AUTH_CONFIG_PATH = None
 _PLIST_PATH = None
 _ACCESS_COOKIE = "bt_auth"
-_COOKIE_SECONDS = 28800  # 8 小时
-_COOKIE_REFRESH_SECONDS = 7200  # 剩余不足 2 小时自动续期
+_COOKIE_SECONDS = 28800
+_COOKIE_REFRESH_SECONDS = 7200
 _SALT = ""
 
-# ── 暴力破解防护配置 ──
-_MAX_LOGIN_ATTEMPTS = 5  # 最大失败次数
-_LOCKOUT_DURATION = 900  # 锁定时间（15分钟）
-_LOGIN_ATTEMPTS_FILE = None
+_MAX_LOGIN_ATTEMPTS = 5
+_LOCKOUT_DURATION = 900
+_LOGIN_DB_PATH = None
+
+_BCRYPT_AVAILABLE = False
+try:
+    import bcrypt as _bcrypt_mod
+    _BCRYPT_AVAILABLE = True
+except ImportError:
+    pass
 
 
 def init_auth(app, base_dir: str = None):
-    """
-    初始化认证系统
-
-    在 app.before_request 中注册认证检查。
-    必须在 app.secret_key 设置后调用。
-    """
-    global _AUTH_CONFIG_PATH, _PLIST_PATH, _SALT, _LOGIN_ATTEMPTS_FILE
+    global _AUTH_CONFIG_PATH, _PLIST_PATH, _SALT, _LOGIN_DB_PATH
 
     if base_dir is None:
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(
@@ -47,16 +48,14 @@ def init_auth(app, base_dir: str = None):
 
     _AUTH_CONFIG_PATH = Path(base_dir) / "config" / "auth_config.json"
     _PLIST_PATH = Path(base_dir) / "com.boto.ticket.plist"
-    _LOGIN_ATTEMPTS_FILE = Path(base_dir) / "config" / "login_attempts.json"
-    _LOGIN_ATTEMPTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _LOGIN_DB_PATH = Path(base_dir) / "tickets.db"
 
-    # 使用安全的动态盐值生成
     _SALT = _generate_secure_salt()
 
-    # 启动时同步密码
+    _init_login_attempts_db()
+
     _sync_password_on_startup()
 
-    # 检查密码是否存在
     pwd = _load_access_pwd()
     if not pwd:
         raise RuntimeError(
@@ -65,36 +64,43 @@ def init_auth(app, base_dir: str = None):
             "   示例: export BOTO_ACCESS_PASSWORD='your_strong_password'"
         )
 
-    # 注册 before_request 钩子
     app.before_request(_check_auth)
-    logger.info("✅ 访问认证中间件已初始化（安全盐值 + 暴力破解防护）")
+    logger.info("✅ 访问认证中间件已初始化（安全盐值 + SQLite 暴力破解防护）")
 
     return pwd
 
 
-def _generate_secure_salt() -> str:
-    """
-    生成安全的动态盐值
+def _init_login_attempts_db():
+    if not _LOGIN_DB_PATH:
+        return
+    try:
+        conn = sqlite3.connect(str(_LOGIN_DB_PATH), timeout=10)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS login_attempts (
+                ip TEXT PRIMARY KEY,
+                failed_count INTEGER DEFAULT 0,
+                lockout_until INTEGER DEFAULT 0,
+                last_attempt INTEGER DEFAULT 0
+            )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"初始化登录尝试数据库失败，回退到内存模式: {e}")
 
-    优先使用以下策略：
-    1. 环境变量 BOTO_AUTH_SALT（用户指定盐值）
-    2. BOTO_SECRET_KEY + 机器指纹（确保不同机器/部署环境使用不同盐值）
-    3. secrets.token_hex() 每次启动生成（仅用于开发和测试）
-    """
-    # 策略1：用户指定盐值
+
+def _generate_secure_salt() -> str:
     custom_salt = os.environ.get("BOTO_AUTH_SALT")
     if custom_salt:
         logger.info("使用自定义认证盐值")
         return custom_salt
 
-    # 策略2：基于 secret_key + 机器指纹
     secret_key = os.environ.get("BOTO_SECRET_KEY")
     if secret_key:
         machine_fingerprint = f"{platform.node()}:{platform.system()}:{platform.machine()}"
         combined = f"{secret_key}:{machine_fingerprint}:auth_salt_v1"
         return hashlib.sha256(combined.encode()).hexdigest()
 
-    # 策略3：开发模式使用随机盐值（但给出警告）
     logger.warning(
         "⚠️ 未设置 BOTO_SECRET_KEY 和 BOTO_AUTH_SALT，"
         "使用随机盐值（仅限开发环境）"
@@ -103,36 +109,61 @@ def _generate_secure_salt() -> str:
 
 
 def _hash_password(password: str) -> str:
-    """对密码进行单向哈希（SHA-256 + salt），不可逆"""
-    return hashlib.sha256(f"{password}:{_SALT}:boto_auth_v1".encode()).hexdigest()
+    if _BCRYPT_AVAILABLE:
+        return "bcrypt:" + _bcrypt_mod.hashpw(
+            password.encode(), _bcrypt_mod.gensalt(rounds=12)
+        ).decode()
+    return "sha256:" + hashlib.sha256(f"{password}:{_SALT}:boto_auth_v1".encode()).hexdigest()
+
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    if stored_hash.startswith("bcrypt:"):
+        if not _BCRYPT_AVAILABLE:
+            logger.error("密码使用 bcrypt 哈希但 bcrypt 库不可用")
+            return False
+        try:
+            return _bcrypt_mod.checkpw(password.encode(), stored_hash[7:].encode())
+        except Exception:
+            return False
+    actual_hash = stored_hash
+    if stored_hash.startswith("sha256:"):
+        actual_hash = stored_hash[7:]
+    computed = hashlib.sha256(f"{password}:{_SALT}:boto_auth_v1".encode()).hexdigest()
+    return hmac.compare_digest(computed, actual_hash)
 
 
 def _load_access_pwd() -> str:
-    """从配置文件读取访问密码（返回哈希值）"""
+    env_pwd = os.environ.get("BOTO_ACCESS_PASSWORD")
+    if env_pwd:
+        return _hash_password(env_pwd)
     try:
         if _AUTH_CONFIG_PATH and _AUTH_CONFIG_PATH.exists():
             data = json.loads(_AUTH_CONFIG_PATH.read_text())
             stored = data.get("password_hash") or data.get("password", "")
-            # 兼容旧明文 → 自动迁移为哈希
-            if stored and "password_hash" not in data:
+            if not stored:
+                return ""
+            if stored.startswith("bcrypt:") or stored.startswith("sha256:"):
+                return stored
+            if "password_hash" not in data:
                 hashed = _hash_password(stored)
                 _save_access_pwd(hashed)
                 return hashed
-            return stored
+            return "sha256:" + stored
     except Exception:
         pass
     return ""
 
 
 def _save_access_pwd(new_pwd: str) -> bool:
-    """保存密码（自动哈希化）到配置文件"""
     try:
-        hashed = _hash_password(new_pwd) if not new_pwd.startswith("hash:") else new_pwd.replace("hash:", "", 1)
+        if not (new_pwd.startswith("bcrypt:") or new_pwd.startswith("sha256:")):
+            new_pwd = _hash_password(new_pwd)
         _AUTH_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        algo = "bcrypt" if new_pwd.startswith("bcrypt:") else "sha256+salt"
         _AUTH_CONFIG_PATH.write_text(
-            json.dumps({"password_hash": hashed, "hash_algo": "sha256+salt"},
+            json.dumps({"password_hash": new_pwd, "hash_algo": algo},
                        ensure_ascii=False, indent=2))
-        logger.info("✅ 密码已安全存储（SHA-256 哈希）")
+        logger.info(f"✅ 密码已安全存储（{algo}）")
         return True
     except Exception as e:
         logger.error(f"保存密码失败: {e}")
@@ -140,7 +171,6 @@ def _save_access_pwd(new_pwd: str) -> bool:
 
 
 def _sync_plist_password(new_pwd: str) -> bool:
-    """同步密码到 plist 文件"""
     try:
         import plistlib
         if not _PLIST_PATH or not _PLIST_PATH.exists():
@@ -164,7 +194,6 @@ def _sync_plist_password(new_pwd: str) -> bool:
 
 
 def _sync_password_on_startup():
-    """启动时密码同步"""
     env_pwd = os.environ.get("BOTO_ACCESS_PASSWORD")
     existing = _load_access_pwd()
 
@@ -178,15 +207,13 @@ def _sync_password_on_startup():
 
 
 def _sign_token(pwd: str) -> str:
-    """生成签名 Token"""
     ts = int(time.time())
     raw = f"{pwd}:{ts}:{_SALT}"
-    sig = hashlib.sha256(raw.encode()).hexdigest()[:16]
+    sig = hashlib.sha256(raw.encode()).hexdigest()[:32]
     return f"{ts}:{sig}"
 
 
 def _verify_token(token: str, pwd: str) -> bool:
-    """验证签名 Token"""
     try:
         parts = token.split(":", 2)
         if len(parts) != 2:
@@ -196,115 +223,133 @@ def _verify_token(token: str, pwd: str) -> bool:
         if time.time() - ts > _COOKIE_SECONDS:
             return False
         expected = hashlib.sha256(
-            f"{pwd}:{ts}:{_SALT}".encode()).hexdigest()[:16]
+            f"{pwd}:{ts}:{_SALT}".encode()).hexdigest()[:32]
         return hmac.compare_digest(sig, expected)
     except (ValueError, IndexError):
         return False
 
 
-def _get_login_attempts() -> dict:
-    """获取登录尝试记录"""
-    try:
-        if _LOGIN_ATTEMPTS_FILE and _LOGIN_ATTEMPTS_FILE.exists():
-            return json.loads(_LOGIN_ATTEMPTS_FILE.read_text())
-    except Exception:
-        pass
-    return {}
-
-
-def _save_login_attempts(attempts: dict) -> bool:
-    """保存登录尝试记录"""
-    try:
-        if _LOGIN_ATTEMPTS_FILE:
-            _LOGIN_ATTEMPTS_FILE.write_text(
-                json.dumps(attempts, ensure_ascii=False, indent=2))
-        return True
-    except Exception:
-        return False
-
-
-def _check_ip_lockout() -> tuple[bool, int]:
-    """
-    检查 IP 是否被锁定
-
-    Returns:
-        tuple[is_locked, remaining_seconds]: 是否被锁定，剩余锁定时间（秒）
-    """
-    if not _LOGIN_ATTEMPTS_FILE:
+def _check_ip_lockout() -> tuple:
+    if not _LOGIN_DB_PATH:
         return False, 0
 
     client_ip = request.remote_addr
     current_time = int(time.time())
-    attempts = _get_login_attempts()
 
-    if client_ip not in attempts:
-        return False, 0
+    try:
+        conn = sqlite3.connect(str(_LOGIN_DB_PATH), timeout=10)
+        row = conn.execute(
+            "SELECT failed_count, lockout_until FROM login_attempts WHERE ip = ?",
+            (client_ip,)
+        ).fetchone()
+        conn.close()
 
-    record = attempts[client_ip]
-    failed_count = record.get("failed_count", 0)
-
-    if failed_count >= _MAX_LOGIN_ATTEMPTS:
-        lockout_time = record.get("lockout_until", 0)
-        if current_time < lockout_time:
-            remaining = lockout_time - current_time
-            return True, remaining
-        else:
-            attempts[client_ip] = {"failed_count": 0, "lockout_until": 0}
-            _save_login_attempts(attempts)
+        if not row:
             return False, 0
+
+        failed_count, lockout_until = row
+        if failed_count >= _MAX_LOGIN_ATTEMPTS:
+            if current_time < lockout_until:
+                remaining = lockout_until - current_time
+                return True, remaining
+            else:
+                _reset_login_attempts_for_ip(client_ip)
+                return False, 0
+    except Exception as e:
+        logger.warning(f"检查 IP 锁定失败: {e}")
 
     return False, 0
 
 
 def _record_failed_login():
-    """记录失败的登录尝试"""
-    if not _LOGIN_ATTEMPTS_FILE:
+    if not _LOGIN_DB_PATH:
         return
 
     client_ip = request.remote_addr
     current_time = int(time.time())
-    attempts = _get_login_attempts()
 
-    if client_ip not in attempts:
-        attempts[client_ip] = {"failed_count": 0, "lockout_until": 0, "history": []}
+    try:
+        conn = sqlite3.connect(str(_LOGIN_DB_PATH), timeout=10)
+        conn.execute("""
+            INSERT INTO login_attempts (ip, failed_count, last_attempt)
+            VALUES (?, 1, ?)
+            ON CONFLICT(ip) DO UPDATE SET
+                failed_count = failed_count + 1,
+                last_attempt = ?
+        """, (client_ip, current_time, current_time))
 
-    record = attempts[client_ip]
-    record["failed_count"] = record.get("failed_count", 0) + 1
-    record["last_attempt"] = current_time
+        row = conn.execute(
+            "SELECT failed_count FROM login_attempts WHERE ip = ?",
+            (client_ip,)
+        ).fetchone()
 
-    if record["failed_count"] >= _MAX_LOGIN_ATTEMPTS:
-        record["lockout_until"] = current_time + _LOCKOUT_DURATION
-        logger.warning(f"🔒 IP {client_ip} 已锁定，失败次数: {record['failed_count']}")
+        if row and row[0] >= _MAX_LOGIN_ATTEMPTS:
+            conn.execute(
+                "UPDATE login_attempts SET lockout_until = ? WHERE ip = ?",
+                (current_time + _LOCKOUT_DURATION, client_ip)
+            )
+            logger.warning(f"🔒 IP {client_ip} 已锁定，失败次数: {row[0]}")
 
-    _save_login_attempts(attempts)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"记录登录失败失败: {e}")
 
 
 def _reset_login_attempts():
-    """重置登录尝试记录（登录成功时调用）"""
-    if not _LOGIN_ATTEMPTS_FILE:
+    if not _LOGIN_DB_PATH:
         return
 
     client_ip = request.remote_addr
-    attempts = _get_login_attempts()
+    _reset_login_attempts_for_ip(client_ip)
 
-    if client_ip in attempts:
-        del attempts[client_ip]
-        _save_login_attempts(attempts)
+
+def _reset_login_attempts_for_ip(ip: str):
+    if not _LOGIN_DB_PATH:
+        return
+
+    try:
+        conn = sqlite3.connect(str(_LOGIN_DB_PATH), timeout=10)
+        conn.execute("DELETE FROM login_attempts WHERE ip = ?", (ip,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"重置登录尝试失败: {e}")
+
+
+def _get_remaining_attempts() -> int:
+    if not _LOGIN_DB_PATH:
+        return _MAX_LOGIN_ATTEMPTS
+
+    client_ip = request.remote_addr
+    try:
+        conn = sqlite3.connect(str(_LOGIN_DB_PATH), timeout=10)
+        row = conn.execute(
+            "SELECT failed_count FROM login_attempts WHERE ip = ?",
+            (client_ip,)
+        ).fetchone()
+        conn.close()
+        if row:
+            return max(0, _MAX_LOGIN_ATTEMPTS - row[0])
+    except Exception:
+        pass
+    return _MAX_LOGIN_ATTEMPTS
 
 
 def _check_auth():
-    """认证检查（注册为 before_request 钩子）"""
-    # 本地访问不限制
     if request.remote_addr in ("127.0.0.1", "::1", "localhost"):
-        return None
+        if os.environ.get("BOTO_SKIP_LOCAL_AUTH", "").lower() in ("1", "true", "yes"):
+            return None
+        from flask import current_app
+        if current_app.config.get("TESTING"):
+            return None
     _PUBLIC_PATHS = ("/docs", "/api/version", "/static/",
                      "/api/v1/auth/", "/api/v1/health",
-                     "/app/", "/app2/",
+                     "/app/", "/app2/", "/login",
                      "/sw.js", "/manifest.json")
     if request.path.startswith(_PUBLIC_PATHS):
         return None
 
-    # 检查 IP 锁定状态
     is_locked, remaining = _check_ip_lockout()
     if is_locked:
         minutes = remaining // 60
@@ -314,22 +359,18 @@ def _check_auth():
 
     current_pwd = _load_access_pwd()
 
-    # Cookie 验证
     cookie_val = request.cookies.get(_ACCESS_COOKIE)
     if cookie_val and _verify_token(cookie_val, current_pwd):
         return _auto_renew_cookie(cookie_val, current_pwd)
 
-    # Header 验证
     header_val = request.headers.get("X-Access-Token")
     if header_val and _verify_token(header_val, current_pwd):
         return None
 
-    # 表单密码提交
     error = None
     if request.method == "POST":
         form_pwd = request.form.get("pwd")
-        form_hash = _hash_password(form_pwd) if form_pwd else ""
-        if form_pwd and hmac.compare_digest(form_hash, current_pwd):
+        if form_pwd and _verify_password(form_pwd, current_pwd):
             _reset_login_attempts()
             resp = _make_redirect(request)
             secure = (request.is_secure
@@ -342,19 +383,14 @@ def _check_auth():
         _record_failed_login()
         error = "❌ 密码错误，请重试"
 
-    # 获取剩余尝试次数
-    attempts = _get_login_attempts()
-    client_ip = request.remote_addr
-    remaining_attempts = _MAX_LOGIN_ATTEMPTS - attempts.get(client_ip, {}).get("failed_count", 0)
-
+    remaining_attempts = _get_remaining_attempts()
     if remaining_attempts <= 2:
-        error = f"{error}（剩余 {remaining_attempts} 次尝试机会）"
+        error = f"{error}（剩余 {remaining_attempts} 次尝试机会）" if error else f"剩余 {remaining_attempts} 次尝试机会"
 
     return _login_page(error)
 
 
 def _auto_renew_cookie(cookie_val: str, pwd: str):
-    """Token 自动续期（剩余不足 2 小时时刷新）"""
     try:
         ts_part = cookie_val.split(":")[0]
         elapsed = time.time() - int(ts_part)
@@ -373,12 +409,10 @@ def _auto_renew_cookie(cookie_val: str, pwd: str):
 
 
 def _login_page(error=None):
-    """登录页面（使用现代化模板）"""
     return render_template("login.html", error=error), 200
 
 
 def _make_redirect(req):
-    """安全重定向"""
     from urllib.parse import urlparse
     from flask import redirect as _rd
     redirect_to = req.args.get("next") or req.form.get("next") or "/"
@@ -389,12 +423,10 @@ def _make_redirect(req):
 
 
 def get_access_password() -> str:
-    """获取当前密码（供修改密码 API 使用）"""
     return _load_access_pwd()
 
 
 def save_access_password(new_pwd: str) -> bool:
-    """保存新密码（供修改密码 API 使用）"""
     result = _save_access_pwd(new_pwd)
     if result:
         _sync_plist_password(new_pwd)

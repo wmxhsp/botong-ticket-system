@@ -8,7 +8,7 @@ from domain.exceptions import TechnicianNotFoundError
 class TechnicianRepo:
 
     def list_technicians(self) -> List[Dict]:
-        items = db_query("SELECT * FROM technicians ORDER BY status, name")
+        items = db_query("SELECT id, name, phone, status, billing_type, daily_rate, package_rate FROM technicians ORDER BY status, name")
         for t in items:
             name = t["name"]
             stats = db_query_one(
@@ -160,7 +160,7 @@ class TechnicianRepo:
         }
 
     def get_technician(self, tech_id: int) -> Dict:
-        tech = db_query_one("SELECT * FROM technicians WHERE id = ?", (tech_id,))
+        tech = db_query_one("SELECT id, name, phone, status, billing_type, daily_rate, package_rate, daily_cost_rate, package_cost FROM technicians WHERE id = ?", (tech_id,))
         if not tech:
             raise TechnicianNotFoundError(f"技术人员 #{tech_id} 不存在")
         return tech
@@ -194,7 +194,7 @@ class TechnicianRepo:
         return True
 
     def get_technician_by_name(self, name: str) -> Optional[Dict]:
-        return db_query_one("SELECT * FROM technicians WHERE name = ?", (name,))
+        return db_query_one("SELECT id, name, phone, status, billing_type FROM technicians WHERE name = ?", (name,))
 
     def get_technician_tickets(self, name: str) -> Dict[str, Any]:
         tickets = db_query(

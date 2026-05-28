@@ -68,7 +68,7 @@ class TicketService:
         "archived": "已归档",
     }
 
-    _pending_confirmations = {}
+    _pending_confirmations = {}  # NOTE: 类级别字典，单进程部署安全；多 worker 部署需迁移到 Redis/DB
 
     def __init__(self, repo, event_bus: EventBus = None, config: Any = None,
                  client_service=None, finance_service=None, goods_service=None,
@@ -208,17 +208,28 @@ class TicketService:
                 except Exception:
                     client_id = None
         else:
-            # 回退：直接在数据库中查找/创建客户（便于单元测试中未注入 client_service 的情况）
             try:
-                from infrastructure.persistence.legacy_db import db_query_one, db_execute
-                row = db_query_one("SELECT id FROM clients WHERE name = ?", (client,))
-                if row:
-                    client_id = row.get("id")
+                client_repo = self._client_repo if hasattr(self, '_client_repo') else None
+                if not client_repo:
+                    from infrastructure.di.service_injection import inject_service
+                    try:
+                        client_repo = inject_service('client_service')._repo
+                    except Exception:
+                        client_repo = None
+                if client_repo:
+                    existing = client_repo.find_by_name(client)
+                    if existing:
+                        client_id = existing.get("id")
+                    else:
+                        client_id = client_repo.save({
+                            "name": client,
+                            "contact": (data.get("contact") or "").strip(),
+                            "phone": data.get("phone", ""),
+                            "created_at": datetime.now().isoformat(),
+                        })
+                        logger.info(f"(Repo Fallback) 自动创建客户: {client}")
                 else:
-                    now = datetime.now().isoformat()
-                    cid = db_execute("INSERT INTO clients (name, created_at) VALUES (?, ?)", (client, now))
-                    client_id = cid
-                    logger.info(f"(Fallback) 自动创建客户: {client}")
+                    client_id = None
             except Exception:
                 client_id = None
 
@@ -812,48 +823,47 @@ class TicketService:
                 (f"（折扣-¥{discount_amount:.2f}）" if discount_amount > 0 else ""),
                 data.get("operator", ""))
 
-        # 7. 事务外的操作（查询/通知，不影响主流程）
-        # 7.1 自动记录支出 — 物料成本（幂等：检查是否已存在）
-        try:
-            finance_svc = self._finance_service
-        except Exception:
-            finance_svc = None
-
-        existing_expenses = []
-        if finance_svc:
+            # 6.5 自动记录支出（在事务内，确保数据一致性）
             try:
-                existing_expenses = finance_svc.list_expenses(
-                    filters={"related_ticket_id": ticket_id}) if hasattr(finance_svc, 'list_expenses') else []
+                finance_svc = self._finance_service
             except Exception:
-                existing_expenses = []
-        existing_categories = {e.get("category", "") for e in existing_expenses}
+                finance_svc = None
 
-        if material_cost > 0 and finance_svc and "物料成本" not in existing_categories:
-            try:
-                finance_svc.add_expense(
-                    category="物料成本",
-                    vendor=ticket.get("client", ""),
-                    description=f"工单 #{ticket.get('ticket_no', '')} 物料成本",
-                    amount=material_cost,
-                    payment_type="material",
-                    related_ticket_id=ticket_id,
-                )
-            except Exception as e:
-                logger.warning(f"自动记录物料成本支出失败: {e}")
+            if finance_svc:
+                try:
+                    existing_expenses = finance_svc.list_expenses(
+                        filters={"related_ticket_id": ticket_id}) if hasattr(finance_svc, 'list_expenses') else []
+                except Exception:
+                    existing_expenses = []
+                existing_categories = {e.get("category", "") for e in existing_expenses}
 
-        # 7.2 自动记录支出 — 交通费（幂等：检查是否已存在）
-        if travel_fee > 0 and finance_svc and "交通费" not in existing_categories:
-            try:
-                finance_svc.add_expense(
-                    category="交通费",
-                    vendor=ticket.get("client", ""),
-                    description=f"工单 #{ticket.get('ticket_no', '')} 交通费",
-                    amount=travel_fee,
-                    payment_type="travel",
-                    related_ticket_id=ticket_id,
-                )
-            except Exception as e:
-                logger.warning(f"自动记录交通费支出失败: {e}")
+                if material_cost > 0 and "物料成本" not in existing_categories:
+                    try:
+                        finance_svc.add_expense(
+                            category="物料成本",
+                            vendor=ticket.get("client", ""),
+                            description=f"工单 #{ticket.get('ticket_no', '')} 物料成本",
+                            amount=material_cost,
+                            payment_type="material",
+                            related_ticket_id=ticket_id,
+                        )
+                    except Exception as e:
+                        logger.warning(f"自动记录物料成本支出失败: {e}")
+
+                if travel_fee > 0 and "交通费" not in existing_categories:
+                    try:
+                        finance_svc.add_expense(
+                            category="交通费",
+                            vendor=ticket.get("client", ""),
+                            description=f"工单 #{ticket.get('ticket_no', '')} 交通费",
+                            amount=travel_fee,
+                            payment_type="travel",
+                            related_ticket_id=ticket_id,
+                        )
+                    except Exception as e:
+                        logger.warning(f"自动记录交通费支出失败: {e}")
+
+        # 7. 事务外的操作（通知，不影响主流程）
 
         return self.get_ticket(ticket_id)
 
@@ -987,9 +997,15 @@ class TicketService:
             description=note or f"工单收款 #{ticket.get('ticket_no', '')}",
         )
 
-        self._repo.confirm_payment_status(ticket_id, "paid", "completed", datetime.now().isoformat())
-        self._repo.add_history(ticket_id, "payment",
-                               f"确认收款: ¥{amount:.2f} ({method})", "system")
+        from infrastructure.persistence.database import UnitOfWork
+        with UnitOfWork() as uow:
+            self._repo.update(ticket_id, {
+                "billing_status": "paid",
+                "status": "completed",
+                "closed_at": datetime.now().isoformat(),
+            }, conn=uow.conn)
+            self._repo.add_history_atomic(uow.conn, ticket_id, "payment",
+                                   f"确认收款: ¥{amount:.2f} ({method})", "system")
 
         if idempotency_key:
             self._repo.save_idempotent_record(idempotency_key, {"ticket_id": ticket_id, "amount": amount})

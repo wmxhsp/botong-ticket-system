@@ -3,10 +3,40 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
 export default defineConfig({
+  test: {
+    environment: 'happy-dom',
+    globals: true,
+    include: ['src/**/*.{test,spec}.{js,ts}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/composables/**', 'src/api/client.js'],
+    },
+  },
   plugins: [vue()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    proxy: {
+      '/app': {
+        target: 'http://localhost:5053',
+        changeOrigin: true,
+        ws: true,
+      },
+      '/api': {
+        target: 'http://localhost:5053',
+        changeOrigin: true,
+      },
+      '/static': {
+        target: 'http://localhost:5053',
+        changeOrigin: true,
+      },
+      '/docs': {
+        target: 'http://localhost:5053',
+        changeOrigin: true,
+      },
     },
   },
   build: {
@@ -20,7 +50,7 @@ export default defineConfig({
       },
     },
     cssCodeSplit: true,
-    sourcemap: false,
+    sourcemap: 'hidden',
     chunkSizeWarningLimit: 500,
   },
   optimizeDeps: {

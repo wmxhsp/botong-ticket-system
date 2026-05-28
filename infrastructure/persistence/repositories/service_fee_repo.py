@@ -28,7 +28,7 @@ class ServiceFeeRepo:
         return {"message": f"已创建服务项目: {data['name']}"}
 
     def get_fee(self, fee_id: int) -> Optional[Dict]:
-        fee = db_query_one("SELECT * FROM service_fees WHERE id = ?", (fee_id,))
+        fee = db_query_one("SELECT id, name, fee_type, price, cost_price, is_active FROM service_fees WHERE id = ?", (fee_id,))
         return fee
 
     def update_fee(self, fee_id: int, **fields) -> Dict:

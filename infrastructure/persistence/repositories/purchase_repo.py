@@ -28,7 +28,7 @@ class PurchaseRepo:
             return 0
 
     def get_purchase_order(self, po_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM purchase_orders WHERE id = ?", (po_id,))
+        return db_query_one("SELECT id, po_no, vendor, supplier_id, purchase_date, status, notes, created_at FROM purchase_orders WHERE id = ?", (po_id,))
 
     def get_purchase_items(self, po_id: int) -> List[Dict]:
         return db_query(
@@ -36,7 +36,7 @@ class PurchaseRepo:
             (po_id,))
 
     def get_purchase_item(self, item_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM purchase_items WHERE id = ?", (item_id,))
+        return db_query_one("SELECT id, po_id, product_name, quantity, unit_price, total_cost, notes FROM purchase_items WHERE id = ?", (item_id,))
 
     def get_po_no(self, po_id: int) -> Optional[str]:
         po = db_query_one("SELECT po_no FROM purchase_orders WHERE id = ?", (po_id,))
@@ -157,7 +157,7 @@ class PurchaseRepo:
                     conn.execute("INSERT INTO purchase_items (po_id, goods_id, goods_name, quantity, unit_cost, total_cost, received_qty, created_at) VALUES (?,?,?,?,?,?,0,?)",
                                 (po_id, goods_id, goods["name"], qty, cost, cost * qty, now))
 
-            po_items = conn.execute("SELECT * FROM purchase_items WHERE po_id = ?", (po_id,)).fetchall()
+            po_items = conn.execute("SELECT id, po_id, product_name, quantity, unit_price, total_cost FROM purchase_items WHERE po_id = ?", (po_id,)).fetchall()
             for item in po_items:
                 item = dict(item)
                 remaining = item["quantity"] - item["received_qty"]

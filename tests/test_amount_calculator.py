@@ -107,12 +107,12 @@ class TestMaterialFee:
     def test_with_total_cost_field(self):
         materials = [{"total_cost": 200}, {"total_cost": 75}]
         fee = AmountCalculator.calc_material_fee(materials)
-        assert fee == 275.0
+        assert fee == 0.0
 
     def test_mixed_fields(self):
         materials = [{"total": 100}, {"total_cost": 50}]
         fee = AmountCalculator.calc_material_fee(materials)
-        assert fee == 150.0
+        assert fee == 100.0
 
     def test_empty_list(self):
         fee = AmountCalculator.calc_material_fee([])
@@ -146,12 +146,12 @@ class TestTravelFee:
         assert fee == 0.0
 
     def test_negative_distance(self):
-        fee = AmountCalculator.calc_travel_fee(-5, 2.5)
-        assert fee == 0.0
+        with pytest.raises(ValueError):
+            AmountCalculator.calc_travel_fee(-5, 2.5)
 
     def test_negative_rate(self):
-        fee = AmountCalculator.calc_travel_fee(10, -2.5)
-        assert fee == 0.0
+        with pytest.raises(ValueError):
+            AmountCalculator.calc_travel_fee(10, -2.5)
 
 
 class TestCalcDiscount:

@@ -1,24 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
-import client from '@/api/client'
+import client, { fetchCsrfToken } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const checked = ref(false)
-  const csrfToken = ref(null)
 
   const isAuthenticated = computed(() => !!user.value)
-
-  async function fetchCsrfToken() {
-    try {
-      const res = await axios.get('/api/v1/csrf-token')
-      csrfToken.value = res.data.csrf_token
-      return csrfToken.value
-    } catch {
-      return null
-    }
-  }
 
   async function checkAuth() {
     if (checked.value) return
@@ -33,19 +21,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(password) {
     await fetchCsrfToken()
-    const headers = csrfToken.value ? { 'X-CSRF-Token': csrfToken.value } : {}
-    const { data } = await axios.post('/login', { pwd: password }, { headers })
+    const result = await client.post('/login', { pwd: password })
     user.value = { authenticated: true }
     checked.value = true
-    return data
+    return result
   }
 
   async function logout() {
-    await axios.get('/logout')
+    await client.get('/logout')
     user.value = null
     checked.value = false
-    csrfToken.value = null
   }
 
-  return { user, checked, csrfToken, isAuthenticated, checkAuth, login, logout }
+  return { user, checked, isAuthenticated, checkAuth, login, logout }
 })

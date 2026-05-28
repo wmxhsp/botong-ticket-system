@@ -315,7 +315,7 @@ class SqliteEquipmentRepository:
 
     def list_components(self, equip_id: int) -> List[Dict[str, Any]]:
         return db_query(
-            "SELECT * FROM equipment_components WHERE equipment_id = ? ORDER BY name",
+            "SELECT id, equipment_id, name, spec, count FROM equipment_components WHERE equipment_id = ? ORDER BY name",
             (equip_id,)) or []
 
     def add_component(self, equip_id: int, name: str, spec: str = "", count: int = 1) -> int:

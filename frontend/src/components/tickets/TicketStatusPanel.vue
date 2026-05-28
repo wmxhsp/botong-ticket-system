@@ -29,31 +29,31 @@
       <div class="space-y-2">
         <div class="d-flex justify-content-between small">
           <span class="text-muted">材料费用</span>
-          <span>¥{{ formatMoney(ticket.total_material || 0) }}</span>
+          <span>{{ formatMoney(ticket.total_material || 0) }}</span>
         </div>
         <div class="d-flex justify-content-between small">
           <span class="text-muted">人工费用</span>
-          <span>¥{{ formatMoney(ticket.total_labor || totalLaborRevenue) }}</span>
+          <span>{{ formatMoney(ticket.total_labor || totalLaborRevenue) }}</span>
         </div>
         <div class="d-flex justify-content-between small">
           <span class="text-muted">外协费用</span>
-          <span>¥{{ formatMoney(ticket.total_external || 0) }}</span>
+          <span>{{ formatMoney(ticket.total_external || 0) }}</span>
         </div>
         <div style="border-top:1px solid var(--bt-gray-200, #e5e7eb);padding-top:8px;margin-top:8px">
           <div class="d-flex justify-content-between font-bold">
             <span>总计</span>
-            <span class="text-success">¥{{ formatMoney(ticket.total || 0) }}</span>
+            <span class="text-success">{{ formatMoney(ticket.total || 0) }}</span>
           </div>
         </div>
         <div style="border-top:1px solid var(--bt-gray-200, #e5e7eb);padding-top:8px;margin-top:8px">
           <div class="d-flex justify-content-between small">
             <span class="text-muted">成本合计</span>
-            <span class="text-danger">¥{{ formatMoney(totalCost) }}</span>
+            <span class="text-danger">{{ formatMoney(totalCost) }}</span>
           </div>
           <div class="d-flex justify-content-between small">
             <span class="text-muted">净利润</span>
             <span :class="netProfit >= 0 ? 'text-success' : 'text-danger'" class="font-bold">
-              ¥{{ formatMoney(netProfit) }}
+              {{ formatMoney(netProfit) }}
             </span>
           </div>
           <div class="d-flex justify-content-between small">
@@ -109,6 +109,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatMoney, formatDateTime } from '@/utils/format'
 
 const props = defineProps({
   ticket: { type: Object, required: true },
@@ -169,11 +170,4 @@ const appointmentStatus = computed(() => {
   if (apptDay.getTime() === today.getTime()) return 'today'
   return 'upcoming'
 })
-
-function formatMoney(val) { return parseFloat(val || 0).toFixed(2) }
-function formatDateTime(dt) {
-  if (!dt) return '-'
-  const d = new Date(dt)
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
-}
 </script>

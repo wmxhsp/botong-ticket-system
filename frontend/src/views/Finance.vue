@@ -13,6 +13,9 @@
         <button class="btn btn-danger btn-sm" @click="openExpenseModal">
           <i class="bi bi-dash-lg me-1"></i><span class="d-none d-sm-inline">记支出</span><span class="d-sm-none">支出</span>
         </button>
+        <button class="btn btn-outline-success btn-sm" @click="doExportFinance">
+          <i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">导出</span>
+        </button>
       </div>
     </div>
 
@@ -232,6 +235,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { financeApi } from '@/api/finance'
+import { toolsApi, downloadBlob } from '@/api/tools'
 import { useToast } from '@/composables/useToast'
 import { formatMoney, formatDateTime } from '@/utils/format'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -345,6 +349,17 @@ async function submitExpense() {
     showToast(e.response?.data?.error || '录入失败', 'danger')
   } finally {
     submitting.value = false
+  }
+}
+
+async function doExportFinance() {
+  try {
+    const res = await toolsApi.exportFinance()
+    const blob = res.data || res
+    downloadBlob(blob, `财务导出_${selectedMonth.value || 'all'}.csv`)
+    showToast('财务数据已导出', 'success')
+  } catch (e) {
+    showToast('导出失败: ' + (e.response?.data?.error || e.message), 'danger')
   }
 }
 </script>

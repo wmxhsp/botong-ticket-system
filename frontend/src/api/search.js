@@ -2,6 +2,6 @@ import client from './client'
 
 export const searchApi = {
   search(params = {}) {
-    return client.get('/search', { params }).then(r => r.data)
+    return client.get('/search', { params })
   },
 }

@@ -6,7 +6,8 @@
   },
   "extends": [
     "eslint:recommended",
-    "plugin:vue/vue3-recommended"
+    "plugin:vue/vue3-recommended",
+    "eslint-config-prettier"
   ],
   "parserOptions": {
     "ecmaVersion": "latest",
@@ -37,12 +38,12 @@
     "object-shorthand": "warn",
     "quote-props": ["warn", "as-needed"],
     "arrow-spacing": ["warn", { "before": true, "after": true }],
-    "comma-dangle": ["warn", "never"],
-    "semi": ["warn", "always"],
-    "quotes": ["warn", "single", { "avoidEscape": true }],
-    "indent": ["warn", 2, { "SwitchCase": 1 }],
     "max-len": ["warn", { "code": 120, "tabWidth": 2, "ignoreUrls": true }],
     "no-trailing-spaces": "warn",
-    "eol-last": ["warn", "always"]
+    "eol-last": ["warn", "always"],
+    "comma-dangle": "off",
+    "semi": "off",
+    "quotes": "off",
+    "indent": "off"
   }
 }

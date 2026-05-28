@@ -9,8 +9,8 @@
           </button>
         </div>
         <div class="d-flex justify-content-between small mb-1">
-          <span>已收 ¥{{ formatMoney(ticket.paid_amount || 0) }}</span>
-          <span>未收 ¥{{ formatMoney(remaining) }}</span>
+          <span>已收 {{ formatMoney(ticket.paid_amount || 0) }}</span>
+          <span>未收 {{ formatMoney(remaining) }}</span>
         </div>
         <div class="progress" style="height:8px">
           <div class="progress-bar bg-success" :style="{ width: paymentPercent + '%' }"></div>
@@ -40,6 +40,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatMoney } from '@/utils/format'
 
 const props = defineProps({
   ticket: { type: Object, required: true },
@@ -71,5 +72,4 @@ const feeDistribution = computed(() => {
   }
 })
 
-function formatMoney(val) { return parseFloat(val || 0).toFixed(2) }
 </script>

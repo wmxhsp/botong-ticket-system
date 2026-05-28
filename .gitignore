@@ -54,8 +54,15 @@ mcp-servers/
 # .trae IDE 技能缓存
 .trae/
 
+# .qoder RepoWiki 缓存
+.qoder/
+
 # .workbuddy
 .workbuddy/
+
+# 认证配置（含密码哈希，不应入库）
+config/auth_config.json
+config/login_attempts.json
 
 # 备份
 backups/*.db.*

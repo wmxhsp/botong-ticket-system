@@ -1,7 +1,7 @@
 <template>
   <router-view v-slot="{ Component, route }">
     <transition name="page-fade" mode="out-in">
-      <KeepAlive :include="['Tickets', 'Clients', 'Equipment', 'Inventory']">
+      <KeepAlive :include="KEEP_ALIVE_NAMES">
         <component :is="Component" :key="route.path" />
       </KeepAlive>
     </transition>
@@ -21,7 +21,7 @@
 </template>
 
 <script setup>
-import { onMounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useRoute } from 'vue-router'
 import { fetchCsrfToken } from '@/api/client'
@@ -29,6 +29,7 @@ import ToastContainer from '@/components/common/ToastContainer.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { KEEP_ALIVE_NAMES } from '@/constants/keepAlive'
 
 const app = useAppStore()
 const route = useRoute()
@@ -59,18 +60,21 @@ onMounted(() => {
   document.documentElement.setAttribute('data-theme', app.theme)
   document.title = PAGE_TITLES[route.name] || '博通 - 售后管理系统'
   fetchCsrfToken()
-  const mq = window.matchMedia('(prefers-color-scheme: dark)')
-  mq.addEventListener('change', () => {
+
+  const mqHandler = () => {
     if (app.theme === 'auto') {
       document.documentElement.setAttribute('data-theme', 'auto')
     }
-  })
+  }
+  const mq = window.matchMedia('(prefers-color-scheme: dark)')
+  mq.addEventListener('change', mqHandler)
 
-  window.addEventListener('api-error', (event) => {
+  const apiErrorHandler = (event) => {
     showToast(event.detail.message, 'danger')
-  })
+  }
+  window.addEventListener('api-error', apiErrorHandler)
 
-  document.addEventListener('keydown', (e) => {
+  const keydownHandler = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault()
       const searchInput = document.querySelector('#globalSearchWrap input')
@@ -80,6 +84,13 @@ onMounted(() => {
       e.preventDefault()
       showKeyboardShortcuts()
     }
+  }
+  document.addEventListener('keydown', keydownHandler)
+
+  onUnmounted(() => {
+    mq.removeEventListener('change', mqHandler)
+    window.removeEventListener('api-error', apiErrorHandler)
+    document.removeEventListener('keydown', keydownHandler)
   })
 })
 

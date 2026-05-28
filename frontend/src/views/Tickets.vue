@@ -145,6 +145,7 @@ defineOptions({ name: 'Tickets' })
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ticketApi } from '@/api/tickets'
+import { toolsApi, downloadBlob } from '@/api/tools'
 import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
@@ -255,8 +256,8 @@ async function batchStatus(status) {
   const ids = selectedIds.value
   if (ids.length === 0) return
   try {
-    const { data } = await ticketApi.batchAction('status', ids, { target_status: status })
-    showToast(data.message || `完成 ${data.success} 条`, 'success')
+    const result = await ticketApi.batchAction('status', ids, { target_status: status })
+    showToast(result.message || `完成 ${result.success} 条`, 'success')
     selectedIds.value = []
     reset()
   } catch { /* error handled globally */ }
@@ -266,20 +267,26 @@ async function batchComplete() {
   const ids = selectedIds.value
   if (ids.length === 0) return
   try {
-    const { data } = await ticketApi.batchAction('complete', ids)
-    showToast(data.message || `完成 ${data.success} 条`, 'success')
+    const result = await ticketApi.batchAction('complete', ids)
+    showToast(result.message || `完成 ${result.success} 条`, 'success')
     selectedIds.value = []
     reset()
   } catch { /* error handled globally */ }
 }
 
-function exportCSV() {
-  const params = new URLSearchParams()
-  if (filters.value.status) params.set('status', filters.value.status)
-  if (filters.value.client) params.set('client', filters.value.client)
-  if (filters.value.keyword) params.set('q', filters.value.keyword)
-  window.open('/api/v1/export/tickets?' + params.toString(), '_blank')
-  showToast('正在导出工单数据...', 'info')
+async function exportCSV() {
+  try {
+    const params = {}
+    if (filters.value.status) params.status = filters.value.status
+    if (filters.value.client) params.client = filters.value.client
+    if (filters.value.keyword) params.q = filters.value.keyword
+    const res = await toolsApi.exportTickets(params)
+    const blob = res.data || res
+    downloadBlob(blob, '工单导出.csv')
+    showToast('工单数据已导出', 'success')
+  } catch (e) {
+    showToast('导出失败: ' + (e.response?.data?.error || e.message), 'danger')
+  }
 }
 
 function formatDate(dateStr) {
@@ -304,7 +311,7 @@ onMounted(() => {
   })
 })
 
-watch([() => filters.value.status, () => filters.value.keyword], () => {
+watch(() => filters.value.status, () => {
   handleSearch()
 })
 </script>

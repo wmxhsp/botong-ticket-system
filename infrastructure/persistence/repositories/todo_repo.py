@@ -27,7 +27,7 @@ class SqliteTodoRepository:
                 yield conn
 
     def find_by_id(self, todo_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM todos WHERE id = ?", (todo_id,))
+        return db_query_one("SELECT id, title, done, priority, parent_id, sort_order, remind, remind_at, repeat_rule FROM todos WHERE id = ?", (todo_id,))
 
     def find_list(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """动态查询待办列表"""
@@ -89,7 +89,7 @@ class SqliteTodoRepository:
         offset = (page - 1) * per_page
 
         return db_query(
-            f"SELECT * FROM todos WHERE {where} ORDER BY sort_order, id DESC LIMIT ? OFFSET ?",
+            f"SELECT id, title, done, priority, parent_id, sort_order, remind, remind_at, repeat_rule, created_at FROM todos WHERE {where} ORDER BY sort_order, id DESC LIMIT ? OFFSET ?",
             params + [per_page, offset])
 
     def save(self, data: Dict[str, Any]) -> int:
@@ -161,7 +161,7 @@ class SqliteTodoRepository:
     def get_subtasks(self, parent_id: int) -> List[Dict[str, Any]]:
         """获取子任务"""
         return db_query(
-            "SELECT * FROM todos WHERE parent_id = ? ORDER BY sort_order, id",
+            "SELECT id, title, done, priority, sort_order FROM todos WHERE parent_id = ? ORDER BY sort_order, id",
             (parent_id,))
 
     def stats(self) -> Dict[str, Any]:
@@ -232,14 +232,14 @@ class SqliteTodoRepository:
     def find_reminders(self, date_from: str, date_to: str) -> List[Dict[str, Any]]:
         """查询需提醒的待办"""
         return db_query(
-            "SELECT * FROM todos WHERE remind=1 AND done=0 "
+            "SELECT id, title, remind_at, repeat_rule FROM todos WHERE remind=1 AND done=0 "
             "AND due_date IS NOT NULL AND due_date <= ? AND due_date >= ?",
             (date_from, date_to))
 
     def find_overdue_repeats(self, today: str) -> List[Dict[str, Any]]:
         """查询逾期重复待办"""
         return db_query(
-            "SELECT * FROM todos WHERE repeat_rule!='' AND done=0 "
+            "SELECT id, title, repeat_rule FROM todos WHERE repeat_rule!='' AND done=0 "
             "AND due_date<? AND parent_id IS NULL",
             (today,))
 

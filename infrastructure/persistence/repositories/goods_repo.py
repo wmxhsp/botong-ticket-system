@@ -46,7 +46,7 @@ class GoodsRepo:
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         category_id = data.get("category_id")
         type_id = data.get("type_id")
-        db_execute("""INSERT INTO goods
+        goods_id = db_execute("""INSERT INTO goods
             (name, sku, category_id, type_id, unit,
              selling_price, cost_price, min_stock, supplier, notes,
              is_subscription, billing_cycle, billing_price, sale_mode,
@@ -58,7 +58,7 @@ class GoodsRepo:
              int(data.get("min_stock", 1)), data.get("supplier", ""), data.get("notes", ""),
              1 if data.get("is_subscription") else 0, data.get("billing_cycle", ""),
              float(data.get("billing_price", 0)), data.get("sale_mode", "both"), now, now))
-        return {"message": f"已创建商品: {data['name']}"}
+        return {"message": f"已创建商品: {data['name']}", "id": goods_id}
 
     def update_goods(self, goods_id: int, **fields) -> Dict:
         allowed = ["name", "sku", "category_id", "type_id",

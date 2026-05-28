@@ -54,31 +54,52 @@ class SqliteTicketRepository:
     # 工单列表查询字段（按需投影）
     LIST_COLS = (
         "id, ticket_no, title, client, contact, location, service_type, priority, "
+        "status, assignee, billing_status, total, created_at, updated_at, closed_at"
+    )
+
+    # 工单详情查询字段（比列表多一些，但仍然不是 *）
+    DETAIL_COLS = (
+        "id, ticket_no, title, client, contact, location, service_type, priority, "
         "status, description, assignee, created_by, estimated_hours, time_spent, "
         "total_labor, total_external, total_material, total, billing_status, "
-        "notes, created_at, updated_at, closed_at, "
-        "service_date, completion_date, billing_model, appointment_at, "
+        "billing_model, notes, project, created_at, updated_at, closed_at, "
+        "service_date, completion_date, appointment_at, "
         "travel_distance, travel_rate, "
-        "service_fee_id, discount_type, discount_value"
+        "service_fee_id, discount_type, discount_value, discount_rate, "
+        "tax_rate, tax_amount, total_with_tax, parts_fee, is_renewal, tax_included, "
+        "timer_started_at"
     )
 
     # ===== 基础 CRUD =====
 
     def find_by_id(self, ticket_id: int) -> Optional[Dict[str, Any]]:
         """获取工单详情（含关联数据）"""
-        ticket = db_query_one("SELECT * FROM tickets WHERE id = ?", (ticket_id,))
+        # 动态检测存在的列，避免旧 schema 报错
+        try:
+            cols_info = db_query_one("PRAGMA table_info(tickets)")  # 仅触发检测
+            from infrastructure.persistence.legacy_db import DB_FILE
+            import sqlite3 as _s3
+            _c = _s3.connect(DB_FILE)
+            _existing = {r[1] for r in _c.execute("PRAGMA table_info(tickets)").fetchall()}
+            _c.close()
+            preferred = [c.strip() for c in self.DETAIL_COLS.split(',')]
+            _cols = ', '.join(c for c in preferred if c in _existing) or '*'
+        except Exception:
+            _cols = '*'
+
+        ticket = db_query_one(f"SELECT {_cols} FROM tickets WHERE id = ?", (ticket_id,))
         if not ticket:
             return None
 
-        # 加载核心关联数据
+        # 加载核心关联数据（这些表数据量小，SELECT * 影响可忽略）
         ticket["materials"] = db_query(
-            "SELECT * FROM materials WHERE ticket_id = ?", (ticket_id,))
+            "SELECT id, name, product_name, product_id, quantity, unit_price, total, total_cost, notes, inventory_item_ids, goods_id, sale_id, created_at FROM materials WHERE ticket_id = ?", (ticket_id,))
         ticket["history"] = db_query(
-            "SELECT * FROM history WHERE ticket_id = ? ORDER BY timestamp", (ticket_id,))
+            "SELECT id, action, note, operator, changes, timestamp FROM history WHERE ticket_id = ? ORDER BY timestamp", (ticket_id,))
 
         # 结算单信息
         ticket["invoice"] = db_query_one(
-            "SELECT * FROM income_records WHERE source_type = 'ticket' AND source_id = ?",
+            "SELECT id, source_type, source_id, client, amount, total_amount, method, payment_method, description, received_at FROM income_records WHERE source_type = 'ticket' AND source_id = ?",
             (ticket_id,))
 
         # 关联设备
@@ -95,7 +116,9 @@ class SqliteTicketRepository:
             (ticket_id,))
 
         ticket["service_items"] = db_query(
-            """SELECT si.*, sf.name AS service_name, sf.fee_type
+            """SELECT si.id, si.ticket_id, si.name, si.technician_name, si.service_fee_id, si.hours,
+                  si.unit_price, si.cost_price, si.line_total, si.line_cost,
+                  sf.name AS service_name, sf.fee_type
                FROM ticket_service_items si
                LEFT JOIN service_fees sf ON si.service_fee_id = sf.id
                WHERE si.ticket_id = ?
@@ -455,7 +478,7 @@ class SqliteTicketRepository:
 
     def find_inventory_item(self, item_id: int) -> Optional[Dict[str, Any]]:
         """查询单个库存项"""
-        return db_query_one("SELECT * FROM inventory_items WHERE id = ?", (item_id,))
+        return db_query_one("SELECT id, product_id, serial_no, batch_no, bulk_quantity, location, status, ticket_id, unit_cost, sale_id, warehouse_id, notes FROM inventory_items WHERE id = ?", (item_id,))
 
     def mark_item_used_atomic(self, conn, item_id: int, ticket_id: int) -> bool:
         """原子操作：标记库存项已使用（使用外部连接）"""
@@ -491,7 +514,7 @@ class SqliteTicketRepository:
 
     def get_history(self, ticket_id: int, limit: int = 50) -> List[Dict[str, Any]]:
         return db_query(
-            "SELECT * FROM history WHERE ticket_id = ? ORDER BY timestamp DESC LIMIT ?",
+            "SELECT id, action, note, operator, changes, timestamp FROM history WHERE ticket_id = ? ORDER BY timestamp DESC LIMIT ?",
             (ticket_id, limit)) or []
 
     def count_history(self, ticket_id: int) -> int:
@@ -573,17 +596,18 @@ class SqliteTicketRepository:
     def get_service_items(self, ticket_id: int):
         """获取工单的所有服务明细行"""
         return db_query(
-            "SELECT * FROM ticket_service_items WHERE ticket_id = ? ORDER BY id",
+            "SELECT id, ticket_id, name, technician_name, service_fee_id, hours, unit_price, cost_price, line_total, line_cost FROM ticket_service_items WHERE ticket_id = ? ORDER BY id",
             (ticket_id,))
 
     def find_service_item(self, item_id: int, ticket_id: int = None) -> Optional[Dict[str, Any]]:
         """查询单个服务明细行"""
+        _cols = "id, ticket_id, name, technician_name, service_fee_id, hours, unit_price, cost_price, line_total, line_cost"
         if ticket_id:
             return db_query_one(
-                "SELECT * FROM ticket_service_items WHERE id = ? AND ticket_id = ?",
+                f"SELECT {_cols} FROM ticket_service_items WHERE id = ? AND ticket_id = ?",
                 (item_id, ticket_id))
         return db_query_one(
-            "SELECT * FROM ticket_service_items WHERE id = ?", (item_id,))
+            f"SELECT {_cols} FROM ticket_service_items WHERE id = ?", (item_id,))
 
     def add_service_item(self, ticket_id: int, technician_name: str,
                          service_fee_id: int, hours: float = 0,
@@ -671,7 +695,7 @@ class SqliteTicketRepository:
     def find_material(self, material_id: int, ticket_id: int) -> Optional[Dict[str, Any]]:
         """查询单个物料"""
         return db_query_one(
-            "SELECT * FROM materials WHERE id = ? AND ticket_id = ?",
+            "SELECT id, ticket_id, name, product_name, product_id, quantity, unit_price, total, total_cost, notes, inventory_item_ids, goods_id, sale_id FROM materials WHERE id = ? AND ticket_id = ?",
             (material_id, ticket_id))
 
     def find_materials_by_ticket(self, ticket_id: int) -> List[Dict[str, Any]]:
@@ -736,7 +760,7 @@ class SqliteTicketRepository:
         """获取工单照片列表"""
         try:
             return db_query(
-                "SELECT * FROM ticket_photos WHERE ticket_id = ? ORDER BY created_at DESC",
+                "SELECT id, filename, url, created_at FROM ticket_photos WHERE ticket_id = ? ORDER BY created_at DESC",
                 (ticket_id,))
         except Exception:
             return []
@@ -862,12 +886,12 @@ class SqliteTicketRepository:
 
     def list_templates(self) -> list:
         try:
-            return db_query("SELECT * FROM ticket_templates ORDER BY sort_order, name") or []
+            return db_query("SELECT id, name, content, client, category, sort_order, service_type, priority, billing_model, estimated_hours, description_template, is_active, created_at, updated_at FROM ticket_templates ORDER BY sort_order, name") or []
         except Exception:
             return []
 
     def get_template(self, tid: int):
-        return db_query_one("SELECT * FROM ticket_templates WHERE id = ?", (tid,))
+        return db_query_one("SELECT id, name, content, client, category, sort_order, service_type, priority, billing_model, estimated_hours, description_template, is_active, created_at, updated_at FROM ticket_templates WHERE id = ?", (tid,))
 
     def create_template(self, name: str, content: str = "", client: str = "",
                         category: str = "", sort_order: int = 99):
@@ -892,12 +916,12 @@ class SqliteTicketRepository:
 
     def list_rules(self) -> list:
         try:
-            return db_query("SELECT * FROM automation_rules ORDER BY priority, name") or []
+            return db_query("SELECT id, name, description, trigger_event, conditions, actions, is_active, enabled, priority, created_at, updated_at FROM automation_rules ORDER BY priority, name") or []
         except Exception:
             return []
 
     def get_rule(self, rid: int):
-        return db_query_one("SELECT * FROM automation_rules WHERE id = ?", (rid,))
+        return db_query_one("SELECT id, name, description, trigger_event, conditions, actions, is_active, enabled, priority, created_at, updated_at FROM automation_rules WHERE id = ?", (rid,))
 
     def create_rule(self, name: str, event: str = "", conditions: str = "{}",
                     actions: str = "{}", enabled: int = 1, priority: int = 99):
@@ -924,7 +948,7 @@ class SqliteTicketRepository:
     def get_enabled_rules_by_event(self, event: str) -> list:
         try:
             return db_query(
-                "SELECT * FROM automation_rules WHERE trigger_event = ? AND enabled = 1 ORDER BY priority",
+                "SELECT id, name, description, trigger_event, conditions, actions, priority FROM automation_rules WHERE trigger_event = ? AND enabled = 1 ORDER BY priority",
                 (event,)) or []
         except Exception:
             return []
@@ -994,7 +1018,7 @@ class SqliteTicketRepository:
             total = count_row["total"] if count_row else 0
 
             rows = db_query(
-                f"SELECT * FROM tickets WHERE {where_clause} ORDER BY {order_by} LIMIT ? OFFSET ?",
+                f"SELECT {self.LIST_COLS} FROM tickets WHERE {where_clause} ORDER BY {order_by} LIMIT ? OFFSET ?",
                 tuple(params + [per_page, offset])) or []
 
             return {
@@ -1067,7 +1091,7 @@ class SqliteTicketRepository:
 
     def find_used_inventory_items(self, ticket_id: int) -> List[Dict[str, Any]]:
         return db_query(
-            "SELECT i.*, COALESCE(g.is_bulk, 0) as is_bulk FROM inventory_items i LEFT JOIN goods g ON i.product_id = g.id WHERE i.ticket_id = ?",
+            "SELECT i.id, i.product_id, i.serial_no, i.batch_no, i.bulk_quantity, i.status, i.ticket_id, i.unit_cost, COALESCE(g.is_bulk, 0) as is_bulk, g.name as product_name, g.unit FROM inventory_items i LEFT JOIN goods g ON i.product_id = g.id WHERE i.ticket_id = ?",
             (ticket_id,)) or []
 
     def restore_inventory_item(self, item_id: int):

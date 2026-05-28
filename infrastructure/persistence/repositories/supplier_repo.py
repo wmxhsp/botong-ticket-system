@@ -8,7 +8,7 @@ class SupplierRepo:
 
     def list_suppliers(self) -> List[Dict]:
         try:
-            items = db_query("SELECT * FROM suppliers ORDER BY name")
+            items = db_query("SELECT id, name, contact, phone, address, notes FROM suppliers ORDER BY name")
         except Exception:
             items = []
         return items
@@ -21,7 +21,7 @@ class SupplierRepo:
         return {"message": f"已创建供应商: {data['name']}"}
 
     def get_supplier(self, sup_id: int) -> Optional[Dict]:
-        sup = db_query_one("SELECT * FROM suppliers WHERE id = ?", (sup_id,))
+        sup = db_query_one("SELECT id, name, contact, phone, address, notes, bank_name, bank_account, payment_terms FROM suppliers WHERE id = ?", (sup_id,))
         return sup
 
     def update_supplier(self, sup_id: int, **fields) -> Dict:

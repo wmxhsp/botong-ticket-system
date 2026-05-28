@@ -293,7 +293,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { ticketApi } from '@/api/tickets'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
@@ -609,5 +609,12 @@ watch(() => props.id, () => { fetchTicket() })
 onMounted(() => {
   fetchTicket()
   fetchServiceFees()
+})
+
+onBeforeUnmount(() => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
 })
 </script>

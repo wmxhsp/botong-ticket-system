@@ -66,6 +66,7 @@ const navGroups = [
     title: '销售管理',
     items: [
       { name: 'Inventory', label: '库存管理', icon: 'box-seam' },
+      { name: 'Purchase', label: '采购管理', icon: 'cart-check' },
       { name: 'Warehouses', label: '仓库管理', icon: 'shop' },
       { name: 'Suppliers', label: '供应商管理', icon: 'truck' },
     ],
@@ -81,6 +82,7 @@ const navGroups = [
     title: '财务',
     items: [
       { name: 'Finance', label: '财务管理', icon: 'cash-coin' },
+      { name: 'Expenses', label: '支出管理', icon: 'wallet2' },
       { name: 'Stats', label: '统计分析', icon: 'graph-up' },
     ],
   },

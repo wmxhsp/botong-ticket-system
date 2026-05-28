@@ -127,7 +127,7 @@ def list_tickets():
     try:
         result = svc.list_tickets_paginated(
             page=request.args.get("page", 1, type=int),
-            per_page=request.args.get("per_page", 50, type=int),
+            per_page=min(request.args.get("per_page", 50, type=int), 200),
             status=request.args.get("status") or None,
             client=request.args.get("client") or None,
             keyword=request.args.get("q") or None,
@@ -233,14 +233,11 @@ def create_ticket():
         return jsonify({"error": f"创建失败: {str(e)}"}), 400
 
 
-@bp_tickets.route("/", methods=["DELETE"], strict_slashes=False)
-def delete_ticket_by_id():
-    """删除工单（通过查询参数 ?id=）"""
+@bp_tickets.route("/<int:ticket_id>", methods=["DELETE"])
+def delete_ticket_by_id(ticket_id: int):
+    """删除工单（RESTful 路径参数）"""
     svc = inject_service("ticket_service")
-    ticket_id = request.args.get("id")
-    if not ticket_id:
-        return jsonify({"error": "请提供工单ID"}), 400
-    svc.delete_ticket(int(ticket_id))
+    svc.delete_ticket(ticket_id)
     return jsonify({"message": "工单已删除"})
 
 
@@ -257,6 +254,8 @@ def batch_operation():
     ids = data.get("ids", [])
     if not action or not ids:
         return jsonify({"error": "请提供操作类型和工单ID列表"}), 400
+    if len(ids) > 100:
+        return jsonify({"error": "批量操作上限 100 条"}), 400
 
     results = {"success": 0, "failed": 0}
     for raw_id in ids:
@@ -510,70 +509,26 @@ def upload_photo(ticket_id: int):
     raw_path = os.path.join(ticket_dir, f"raw_{ticket_id}_{now_str}.jpg")
     photo.save(raw_path)
     filename = f"wm_{ticket_id}_{now_str}.jpg"
-    # 尝试将打水印任务异步入队；若队列不可用回退到同步处理
-    try:
-        from infrastructure.di.container import Container
-        from infrastructure.queue.interfaces import Task
+    # 后台线程处理水印，fire-and-forget
+    import threading
 
-        queue = Container.resolve("queue") if Container.has("queue") else None
-        if queue:
-                task = Task(
-                    name="tasks.photo_tasks.process_watermark",
-                    payload={
-                        "raw_path": raw_path,
-                        "ticket_id": ticket_id,
-                        "filename": filename,
-                    },
-                )
-                # 记录任务状态到磁盘状态文件（轻量替代 DB schema 变更）
-                try:
-                    import json, os
-                    os.makedirs(os.path.join(os.getcwd(), '.data'), exist_ok=True)
-                    status_path = os.path.join(os.getcwd(), '.data', 'photo_task_status.json')
-                    entry = {
-                        'task_id': task.task_id or f"local-{task.name}-{int(datetime.now().timestamp())}",
-                        'ticket_id': ticket_id,
-                        'filename': filename,
-                        'status': 'queued',
-                        'created_at': datetime.now().isoformat(),
-                    }
-                    # append to jsonlines file
-                    with open(status_path, 'a', encoding='utf-8') as sf:
-                        sf.write(json.dumps(entry, ensure_ascii=False) + "\n")
-                except Exception:
-                    pass
-                task_id = queue.enqueue(task)
-                logger.info(f"照片处理任务已入队: task_id={task_id}, ticket_id={ticket_id}")
-                return jsonify({
-                    "message": "照片已上传，正在后台处理",
-                    "task_id": task_id,
-                    "filepath": f"/static/uploads/tickets/{ticket_id}/{filename}",
-                })
-        else:
-            # 回退到同步处理
-            try:
-                svc.add_watermark(raw_path, ticket_id)
-            except Exception as e:
-                logger.warning(f"照片打水印失败 (ticket_id={ticket_id}): {e}")
-            filepath = f"static/uploads/tickets/{ticket_id}/{filename}"
-            svc.save_photo(ticket_id, filename, filepath)
-            return jsonify({
-                "message": "照片已上传",
-                "filepath": f"/static/uploads/tickets/{ticket_id}/{filename}"
-            })
-    except Exception as e:
-        logger.warning(f"照片处理调度失败 (ticket_id={ticket_id}): {e}")
-        # 最后回退到同步保存，避免上传丢失
+    def _process_watermark():
         try:
             svc.add_watermark(raw_path, ticket_id)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"照片打水印失败 (ticket_id={ticket_id}): {e}")
         filepath = f"static/uploads/tickets/{ticket_id}/{filename}"
         try:
             svc.save_photo(ticket_id, filename, filepath)
-        except Exception:
-            pass
-        return jsonify({"message": "照片已上传（回退处理）", "filepath": f"/static/uploads/tickets/{ticket_id}/{filename}"})
+        except Exception as e:
+            logger.warning(f"照片保存失败 (ticket_id={ticket_id}): {e}")
+
+    threading.Thread(target=_process_watermark, daemon=True, name=f"watermark-{ticket_id}").start()
+    logger.info(f"照片处理已启动: ticket_id={ticket_id}")
+    return jsonify({
+        "message": "照片已上传，正在后台处理",
+        "filepath": f"/static/uploads/tickets/{ticket_id}/{filename}",
+    })
 
 
 @bp_tickets.route("/<int:ticket_id>/photos", methods=["DELETE"])
@@ -898,6 +853,8 @@ def batch_preview():
     ids = data.get("ids", [])
     if not action or not ids:
         return jsonify({"error": "请提供操作类型和工单ID列表"}), 400
+    if len(ids) > 100:
+        return jsonify({"error": "批量操作上限 100 条"}), 400
 
     tickets_info = []
     for raw_id in ids:
@@ -909,6 +866,7 @@ def batch_preview():
                     "id": tid, "ticket_no": t["ticket_no"],
                     "client": t["client"], "status": t["status"],
                     "status_name": svc.STATUS_NAMES.get(t.get("status"), ""),
+                    "total": float(t.get("total", 0) or 0),
                 })
         except (ValueError, TypeError):
             pass
@@ -916,10 +874,7 @@ def batch_preview():
     if not tickets_info:
         return jsonify({"error": "未找到有效工单"}), 404
 
-    total_amount = sum(
-        float(svc.get_ticket(t["id"]).get("total", 0) or 0)
-        for t in tickets_info
-    )
+    total_amount = sum(t["total"] for t in tickets_info)
 
     confirm_id = f"batch_{action}_{int(datetime.now().timestamp())}"
     svc.store_confirmation(confirm_id, {

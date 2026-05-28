@@ -6,9 +6,29 @@
     </div>
 
     <div class="row g-2 mb-2">
-      <div class="col-md-4"><div class="card p-2 text-center"><div class="stat-value">{{ staff.length }}</div><div class="stat-label">工程师总数</div></div></div>
-      <div class="col-md-4"><div class="card p-2 text-center"><div class="stat-value">{{ activeCount }}</div><div class="stat-label">在职</div></div></div>
-      <div class="col-md-4"><div class="card p-2 text-center"><div class="stat-value">{{ avgBillRate }}</div><div class="stat-label">平均计费单价</div></div></div>
+      <div class="col-md-3"><div class="card p-2 text-center"><div class="stat-value">{{ staff.length }}</div><div class="stat-label">工程师总数</div></div></div>
+      <div class="col-md-3"><div class="card p-2 text-center"><div class="stat-value">{{ activeCount }}</div><div class="stat-label">在职</div></div></div>
+      <div class="col-md-3"><div class="card p-2 text-center"><div class="stat-value">{{ avgBillRate }}</div><div class="stat-label">平均计费单价</div></div></div>
+      <div class="col-md-3"><div class="card p-2 text-center"><div class="stat-value text-success">{{ summaryData.total_tickets || 0 }}</div><div class="stat-label">总工单</div></div></div>
+    </div>
+
+    <!-- 利润排行 -->
+    <div class="card p-2 mb-3" v-if="profitRanking.length">
+      <h5 class="mb-3"><i class="bi bi-trophy me-2 text-warning"></i>利润排行</h5>
+      <div class="row g-2">
+        <div v-for="(p, i) in profitRanking.slice(0, 5)" :key="p.id || i" class="col-md-4 col-sm-6">
+          <div class="card p-2" :class="{ 'border-warning': i === 0 }">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold" :class="i === 0 ? 'text-warning' : i === 1 ? 'text-secondary' : i === 2 ? 'text-danger' : 'text-muted'" style="font-size:20px">#{{ i + 1 }}</span>
+              <div>
+                <div class="fw-bold">{{ p.name }}</div>
+                <div class="small text-success">利润 {{ formatMoney(p.profit || p.total_profit) }}</div>
+                <div class="small text-muted">{{ p.ticket_count || 0 }} 单 · 收入 {{ formatMoney(p.revenue || p.total_revenue) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="card p-2">
@@ -25,6 +45,7 @@
               <td><span class="badge" :class="s.status === 'active' ? 'bg-success' : 'bg-secondary'">{{ s.status === 'active' ? '在职' : '离职' }}</span></td>
               <td>{{ s.ticket_count || s.tickets || 0 }}</td>
               <td>
+                <button class="btn btn-sm btn-outline-primary me-1" @click="viewStaffDetail(s)"><i class="bi bi-eye"></i></button>
                 <button class="btn btn-sm btn-outline-primary me-1" @click="editStaff(s)"><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-sm btn-outline-danger" @click="deleteStaff(s.id)"><i class="bi bi-trash"></i></button>
               </td>
@@ -33,6 +54,37 @@
         </table>
       </div>
     </div>
+
+    <!-- 详情弹窗 -->
+    <BtModal v-model:visible="showDetail" :title="detailTech?.name || '工程师详情'" icon="bi bi-person-badge" max-width="650px" :show-footer="false">
+      <template #body>
+        <template v-if="detailTech">
+          <div class="row g-2 mb-3">
+            <div class="col-6"><strong>姓名：</strong>{{ detailTech.name }}</div>
+            <div class="col-6"><strong>状态：</strong><span class="badge" :class="detailTech.status === 'active' ? 'bg-success' : 'bg-secondary'">{{ detailTech.status === 'active' ? '在职' : '离职' }}</span></div>
+            <div class="col-6"><strong>计费模式：</strong>{{ billingLabel(detailTech.billing_type) }}</div>
+            <div class="col-6"><strong>电话：</strong>{{ detailTech.phone || '-' }}</div>
+            <div class="col-6"><strong>技能：</strong>{{ detailTech.skills || '-' }}</div>
+          </div>
+          <h6 class="mb-2">关联工单</h6>
+          <div v-if="detailTicketsLoading" class="text-center py-2"><div class="bt-spinner"></div></div>
+          <div v-else-if="detailTickets.length === 0" class="text-muted small">暂无工单</div>
+          <div v-else class="table-responsive">
+            <table class="bt-table bt-table-sm">
+              <thead><tr><th>工单号</th><th>客户</th><th>状态</th><th>金额</th></tr></thead>
+              <tbody>
+                <tr v-for="t in detailTickets.slice(0, 10)" :key="t.id">
+                  <td><router-link :to="'/tickets/' + t.id">{{ t.ticket_no || '-' }}</router-link></td>
+                  <td>{{ t.client || '-' }}</td>
+                  <td>{{ t.status }}</td>
+                  <td>{{ formatMoney(t.total || t.amount) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </template>
+    </BtModal>
 
     <BtModal v-model:visible="showForm" :title="editItem ? '编辑工程师' : '新增工程师'" icon="bi bi-person-plus" max-width="500px">
       <template #body>
@@ -117,6 +169,7 @@ import { staffApi } from '@/api/staff'
 import { useApi } from '@/composables/useApi'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { formatMoney } from '@/utils/format'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import BtModal from '@/components/common/BtModal.vue'
 
@@ -125,6 +178,12 @@ const { confirm } = useConfirm()
 
 const { data: staffData, loading, execute: loadStaff } = useApi(staffApi.list)
 const staff = computed(() => Array.isArray(staffData.value) ? staffData.value : staffData.value?.technicians || staffData.value?.data || [])
+const summaryData = ref({})
+const profitRanking = ref([])
+const showDetail = ref(false)
+const detailTech = ref(null)
+const detailTickets = ref([])
+const detailTicketsLoading = ref(false)
 const showForm = ref(false)
 const editItem = ref(null)
 const saving = ref(false)
@@ -166,7 +225,26 @@ function billingBadge(bt) {
   return badges[bt] || 'bg-info'
 }
 
-onMounted(() => loadStaff())
+onMounted(() => { loadStaff(); loadSummary(); loadProfitRanking() })
+
+async function loadSummary() {
+  try { summaryData.value = await staffApi.getSummary() || {} } catch { /* 404 ok */ }
+}
+async function loadProfitRanking() {
+  try { profitRanking.value = await staffApi.getProfitRanking() || [] } catch { profitRanking.value = [] }
+}
+
+async function viewStaffDetail(s) {
+  detailTech.value = s
+  detailTickets.value = []
+  showDetail.value = true
+  detailTicketsLoading.value = true
+  try {
+    const data = await staffApi.getTickets(s.id)
+    detailTickets.value = Array.isArray(data) ? data : data?.tickets || []
+  } catch { detailTickets.value = [] }
+  finally { detailTicketsLoading.value = false }
+}
 
 function resetForm() {
   form.value = { name: '', phone: '', billing_type: 'hourly', bill_rate: 150, cost_rate: 50, daily_rate: 800, daily_cost_rate: 400, package_rate: 3000, package_cost: 2000, skills: '', status: 'active', notes: '' }

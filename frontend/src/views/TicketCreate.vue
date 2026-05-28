@@ -7,6 +7,21 @@
 
     <div class="card p-4">
       <form @submit.prevent="submitTicket">
+        <!-- 模板选择 -->
+        <div v-if="templates.length" class="mb-3 p-2 rounded" style="background:var(--bt-gray-100)">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-file-earmark-text"></i>
+            <span class="small fw-semibold">快速填入模板</span>
+          </div>
+          <div class="d-flex gap-1 flex-wrap">
+            <button v-for="tpl in templates" :key="tpl.id" type="button"
+                    class="btn btn-sm" :class="selectedTemplate === tpl.id ? 'btn-primary' : 'btn-outline-secondary'"
+                    @click="applyTemplate(tpl)">
+              {{ tpl.name }}
+            </button>
+          </div>
+        </div>
+
         <div class="row g-2">
           <div class="col-md-4">
             <label class="form-label">客户名称 <span class="text-danger">*</span></label>
@@ -36,7 +51,7 @@
             <select class="form-select" v-model="form.assignee">
               <option value="">选择工程师...</option>
               <option v-for="t in technicians" :key="t.id" :value="t.name">
-                {{ t.name }} (¥{{ t.cost_rate || 0 }}/h)
+                {{ t.name }} (¥{{ formatRate(t) }})
               </option>
             </select>
           </div>
@@ -62,6 +77,13 @@
             <div class="input-group">
               <input class="form-control" v-model.number="form.estimated_hours" type="number" step="0.5" min="0" placeholder="0" @input="calcFee">
               <span class="input-group-text">小时</span>
+            </div>
+          </div>
+          <div class="col-md-3" v-if="form.billing_model === 'daily'">
+            <label class="form-label">工作天数</label>
+            <div class="input-group">
+              <input class="form-control" v-model.number="form.estimated_days" type="number" step="0.5" min="0" placeholder="0" @input="calcFee">
+              <span class="input-group-text">天</span>
             </div>
           </div>
           <div class="col-md-3">
@@ -160,6 +182,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ticketApi } from '@/api/tickets'
 import { serviceFeeApi } from '@/api/service-fees'
+import { toolsApi } from '@/api/tools'
 import { staffApi } from '@/api/staff'
 import { equipmentApi } from '@/api/equipment'
 import { useToast } from '@/composables/useToast'
@@ -173,6 +196,8 @@ const serviceFees = ref([])
 const technicians = ref([])
 const clientEquipment = ref([])
 const reminderPreview = ref('')
+const templates = ref([])
+const selectedTemplate = ref(null)
 
 const form = ref({
   client: '',
@@ -183,6 +208,7 @@ const form = ref({
   assignee: '',
   priority: '',
   estimated_hours: 0,
+  estimated_days: 0,
   amount: '',
   parts_fee: 0,
   equipment_id: '',
@@ -254,10 +280,15 @@ function calcFee() {
   const price = parseFloat(fee.unit_price) || 0
   const feeType = fee.fee_type || ''
   const hours = parseFloat(form.value.estimated_hours) || 0
+  const days = parseFloat(form.value.estimated_days) || 0
   let laborFee = 0
 
   if (feeType === 'hourly') {
     laborFee = hours * price
+  } else if (feeType === 'daily') {
+    laborFee = days * price
+  } else if (feeType === 'package') {
+    laborFee = price
   } else if (feeType === 'fixed' || feeType === 'monthly' || feeType === 'yearly') {
     laborFee = price
   } else if (feeType === 'per_km') {
@@ -266,6 +297,15 @@ function calcFee() {
   }
 
   form.value.amount = laborFee.toFixed(2)
+}
+
+function formatRate(tech) {
+  const bt = tech.billing_type || 'hourly'
+  const rate = tech.cost_rate || 0
+  const dailyRate = tech.daily_cost_rate || 0
+  if (bt === 'daily') return `${dailyRate || rate * 8}/天`
+  if (bt === 'package') return `${tech.package_cost || rate}/包`
+  return `${rate}/h`
 }
 
 function updateReminderPreview() {
@@ -286,7 +326,7 @@ function resetForm() {
   form.value = {
     client: '', contact: '', phone: '', content: '',
     service_fee_id: '', assignee: '', priority: '',
-    estimated_hours: 0, amount: '', parts_fee: 0,
+    estimated_hours: 0, estimated_days: 0, amount: '', parts_fee: 0,
     equipment_id: '', appointment_at: '', address: '',
     travel_distance: 0, travel_rate: 0,
     enable_reminder: true, notes: '',
@@ -296,47 +336,66 @@ function resetForm() {
   showToast('表单已重置', 'info')
 }
 
-async function submitTicket() {
-  if (!form.value.client) {
-    showToast('请选择客户', 'warning')
-    return
+function validateTicketForm(formData) {
+  const rules = [
+    { field: 'client', message: '请选择客户' },
+    { field: 'content', message: '请输入服务内容' },
+  ]
+  const errors = rules
+    .filter(rule => !formData[rule.field])
+    .map(rule => rule.message)
+  return { isValid: errors.length === 0, errors }
+}
+
+function buildTicketPayload(formData) {
+  const toOptional = (value) => value || undefined
+  const toOptionalInt = (value) => value ? parseInt(value) : undefined
+  const toOptionalFloat = (value) => value ? parseFloat(value) : undefined
+
+  return {
+    client: formData.client,
+    content: formData.content,
+    phone: toOptional(formData.phone),
+    contact: toOptional(formData.contact),
+    address: toOptional(formData.address),
+    assignee: toOptional(formData.assignee),
+    priority: toOptional(formData.priority),
+    service_fee_id: toOptionalInt(formData.service_fee_id),
+    billing_model: toOptional(formData.billing_model),
+    estimated_hours: toOptional(formData.estimated_hours),
+    estimated_days: toOptional(formData.estimated_days),
+    amount: toOptionalFloat(formData.amount),
+    parts_fee: toOptional(formData.parts_fee),
+    equipment_id: toOptionalInt(formData.equipment_id),
+    appointment_at: toOptional(formData.appointment_at),
+    travel_distance: toOptional(formData.travel_distance),
+    travel_rate: toOptional(formData.travel_rate),
+    notes: toOptional(formData.notes),
   }
-  if (!form.value.content) {
-    showToast('请输入服务内容', 'warning')
+}
+
+function handleTicketCreated(response) {
+  showToast('工单创建成功', 'success')
+  const ticket = response?.ticket || response?.data || response
+  if (ticket && ticket.id) {
+    router.push('/tickets/' + ticket.id)
+  } else {
+    router.push('/tickets')
+  }
+}
+
+async function submitTicket() {
+  const validation = validateTicketForm(form.value)
+  if (!validation.isValid) {
+    showToast(validation.errors[0], 'warning')
     return
   }
 
   submitting.value = true
   try {
-    const payload = {
-      client: form.value.client,
-      content: form.value.content,
-      phone: form.value.phone || undefined,
-      contact: form.value.contact || undefined,
-      address: form.value.address || undefined,
-      assignee: form.value.assignee || undefined,
-      priority: form.value.priority || undefined,
-      service_fee_id: form.value.service_fee_id ? parseInt(form.value.service_fee_id) : undefined,
-      billing_model: form.value.billing_model || undefined,
-      estimated_hours: form.value.estimated_hours || undefined,
-      amount: form.value.amount ? parseFloat(form.value.amount) : undefined,
-      parts_fee: form.value.parts_fee || undefined,
-      equipment_id: form.value.equipment_id ? parseInt(form.value.equipment_id) : undefined,
-      appointment_at: form.value.appointment_at || undefined,
-      travel_distance: form.value.travel_distance || undefined,
-      travel_rate: form.value.travel_rate || undefined,
-      notes: form.value.notes || undefined,
-    }
-
+    const payload = buildTicketPayload(form.value)
     const res = await ticketApi.create(payload)
-    showToast('工单创建成功', 'success')
-    const resData = res.data || res
-    const ticket = resData.ticket || resData.data || resData
-    if (ticket && ticket.id) {
-      router.push('/tickets/' + ticket.id)
-    } else {
-      router.push('/tickets')
-    }
+    handleTicketCreated(res)
   } catch (e) {
     console.error('创建失败:', e)
     showToast('创建失败: ' + (e.response?.data?.error || e.message), 'danger')
@@ -358,5 +417,39 @@ onMounted(async () => {
   } catch (e) {
     console.error('加载工程师列表失败:', e)
   }
+  try {
+    const tplData = await toolsApi.listTemplates()
+    templates.value = tplData.templates || tplData || []
+  } catch (e) {
+    /* 无模板也正常 */
+  }
 })
+
+async function applyTemplate(tpl) {
+  if (selectedTemplate.value === tpl.id) {
+    selectedTemplate.value = null
+    return
+  }
+  selectedTemplate.value = tpl.id
+  try {
+    const data = await toolsApi.applyTemplate(tpl.id)
+    const t = data.template || data
+    if (t.content) form.value.content = t.content
+    if (t.client) form.value.client = t.client
+    if (t.service_fee_id) form.value.service_fee_id = t.service_fee_id
+    if (t.priority) form.value.priority = t.priority
+    if (t.assignee) form.value.assignee = t.assignee
+    if (t.estimated_hours) form.value.estimated_hours = t.estimated_hours
+    if (t.amount) form.value.amount = t.amount
+    if (t.parts_fee) form.value.parts_fee = t.parts_fee
+    if (t.notes) form.value.notes = t.notes
+    showToast(`已填入模板「${tpl.name}」`, 'success')
+  } catch (e) {
+    /* applyTemplate 失败则手动填入本地数据 */
+    if (tpl.content) form.value.content = tpl.content
+    if (tpl.priority) form.value.priority = tpl.priority
+    if (tpl.assignee) form.value.assignee = tpl.assignee
+    showToast(`已填入模板「${tpl.name}」`, 'success')
+  }
+}
 </script>

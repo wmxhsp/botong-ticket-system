@@ -2,7 +2,7 @@ import client from './client'
 
 export const purchaseApi = {
   list() {
-    return client.get('/purchase/').then(r => r.data)
+    return client.get('/purchase/')
   },
 
   create(data) {
@@ -10,11 +10,11 @@ export const purchaseApi = {
   },
 
   stats() {
-    return client.get('/purchase/stats').then(r => r.data)
+    return client.get('/purchase/stats')
   },
 
   get(poId) {
-    return client.get(`/purchase/${poId}`).then(r => r.data)
+    return client.get(`/purchase/${poId}`)
   },
 
   update(poId, data) {
@@ -30,7 +30,7 @@ export const purchaseApi = {
   },
 
   unpaid() {
-    return client.get('/purchase/unpaid').then(r => r.data)
+    return client.get('/purchase/unpaid')
   },
 
   pay(poId, data) {

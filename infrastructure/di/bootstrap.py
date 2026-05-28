@@ -223,16 +223,18 @@ def bootstrap(flask_app=None, use_events: bool = True, use_cache: bool = True):
     if use_cache:
         _register_cache(flask_app)
 
-    # 5.5 任务队列（自动选择 RQ / LocalQueue）
+    # 5.5 定时任务调度器（APScheduler，替代 RQ/LocalQueue）
     try:
-        from infrastructure.queue.queue_factory import create_queue, register_cron_jobs
-        queue = create_queue()
-        Container.register_instance("queue", queue)
-        register_cron_jobs(queue)
-        logger.info("✅ 任务队列已注册")
+        from infrastructure.scheduler import get_scheduler, register_cron_jobs
+        scheduler = get_scheduler()
+        register_cron_jobs(scheduler)
+        if not scheduler.running:
+            scheduler.start()
+        Container.register_instance("scheduler", scheduler)
+        logger.info("✅ APScheduler 定时调度器已启动")
     except Exception as e:
-        Container.register_instance("queue", None)
-        logger.warning(f"任务队列注册失败: {e}")
+        Container.register_instance("scheduler", None)
+        logger.warning(f"APScheduler 启动失败: {e}")
 
     # 6. 注册事件订阅
     if use_events:
@@ -242,14 +244,7 @@ def bootstrap(flask_app=None, use_events: bool = True, use_cache: bool = True):
     if flask_app:
         _register_routes(flask_app)
 
-    # 8. 启动每日数据库维护
-    try:
-        from infrastructure.persistence.maintenance import get_maintenance
-        maint = get_maintenance()
-        maint.schedule_daily()
-        logger.info("✅ 每日数据库维护已启动")
-    except Exception as e:
-        logger.warning(f"数据库维护启动失败: {e}")
+    # 8. 每日数据库维护已由 APScheduler cron 调度（vacuum_database: 每周日 3:00）
 
     # 9. 将所有已解析的服务注入 Flask app context
     if flask_app:
@@ -398,7 +393,7 @@ def _inject_services_to_app(flask_app):
         "ticket_export_service", "search_service",
         "technician_service", "service_fee_service", "stats_service",
         # 基础设施
-        "settings", "event_bus", "cache", "queue",
+        "settings", "event_bus", "cache", "scheduler",
         "wecom_bot", "pushplus_bot", "mcp_client",
     ]
 

@@ -24,7 +24,7 @@ def register_auth_routes(app):
 
     @app.route("/login", methods=["POST"])
     def _login_spa():
-        from web.middleware.auth import _load_access_pwd, _sign_token, _ACCESS_COOKIE
+        from web.middleware.auth import _load_access_pwd, _sign_token, _ACCESS_COOKIE, _verify_password
 
         current_pwd = _load_access_pwd()
         if not current_pwd:
@@ -32,9 +32,8 @@ def register_auth_routes(app):
 
         data = request.get_json(silent=True) or {}
         input_pwd = data.get("pwd", "")
-        input_hash = hashlib.sha256(f"{input_pwd}:{os.environ.get('BOTO_SECRET_KEY', 'botong_stable_salt_v1')}:boto_auth_v1".encode()).hexdigest()
 
-        if hmac.compare_digest(input_hash, current_pwd):
+        if _verify_password(input_pwd, current_pwd):
             token = _sign_token(current_pwd)
             resp = make_response(jsonify({"ok": True, "redirect": "/app/"}))
             secure = request.is_secure or request.headers.get("X-Forwarded-Proto") == "https"

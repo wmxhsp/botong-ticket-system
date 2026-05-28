@@ -47,11 +47,12 @@ class SqliteFinanceRepository:
 
     def get_income(self, income_id: int) -> Optional[Dict[str, Any]]:
         """获取收入记录"""
-        return db_query_one("SELECT * FROM income_records WHERE id = ?", (income_id,))
+        return db_query_one("SELECT id, source_type, source_id, client, amount, total_amount, method, payment_method, tax_amount, description, received_at, created_at FROM income_records WHERE id = ?", (income_id,))
 
     def list_income(self, source_type: str = None, source_id: int = None,
                     client: str = None, limit: int = 50) -> List[Dict[str, Any]]:
         """获取收入列表"""
+        _cols = "id, source_type, source_id, client, amount, total_amount, method, payment_method, description, received_at, created_at"
         conditions = []
         params = []
         if source_type:
@@ -65,7 +66,7 @@ class SqliteFinanceRepository:
             params.append(client)
         where = " AND ".join(conditions) if conditions else "1=1"
         return db_query(
-            f"SELECT * FROM income_records WHERE {where} ORDER BY id DESC LIMIT ?",
+            f"SELECT {_cols} FROM income_records WHERE {where} ORDER BY id DESC LIMIT ?",
             params + [limit])
 
     def get_monthly_income(self, start: str, end: str) -> float:
@@ -87,7 +88,7 @@ class SqliteFinanceRepository:
     def get_income_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """最近收入记录"""
         return db_query(
-            "SELECT * FROM income_records ORDER BY id DESC LIMIT ?", (limit,))
+            "SELECT id, source_type, source_id, client, amount, total_amount, method, payment_method, description, received_at, created_at FROM income_records ORDER BY id DESC LIMIT ?", (limit,))
 
     # ===== 支出 =====
 
@@ -112,11 +113,12 @@ class SqliteFinanceRepository:
 
     def get_expense(self, exp_id: int) -> Optional[Dict[str, Any]]:
         """获取支出记录"""
-        return db_query_one("SELECT * FROM expense_records WHERE id = ?", (exp_id,))
+        return db_query_one("SELECT id, category, vendor, description, amount, paid_at, payment_type, related_ticket_id, is_personal, is_recurring FROM expense_records WHERE id = ?", (exp_id,))
 
     def list_expenses(self, category: str = None, limit: int = 100,
                       personal: bool = False) -> List[Dict[str, Any]]:
         """获取支出列表"""
+        _cols = "id, category, vendor, description, amount, paid_at, payment_type, related_ticket_id, is_personal, is_recurring, receipt_no"
         conditions = ["is_personal = ?"]
         params = [1 if personal else 0]
         if category:
@@ -124,7 +126,7 @@ class SqliteFinanceRepository:
             params.append(category)
         where = " AND ".join(conditions)
         return db_query(
-            f"SELECT * FROM expense_records WHERE {where} ORDER BY id DESC LIMIT ?",
+            f"SELECT {_cols} FROM expense_records WHERE {where} ORDER BY id DESC LIMIT ?",
             params + [limit])
 
     def get_monthly_expense(self, start: str, end: str,
@@ -274,13 +276,13 @@ class SqliteFinanceRepository:
     def get_client_income_records(self, client: str, limit: int = 50) -> List[Dict[str, Any]]:
         """获取客户收入记录"""
         return db_query(
-            "SELECT * FROM income_records WHERE client=? ORDER BY id DESC LIMIT ?",
+            "SELECT id, source_type, source_id, amount, total_amount, method, payment_method, description, received_at FROM income_records WHERE client=? ORDER BY id DESC LIMIT ?",
             (client, limit))
 
     def get_income_records_range(self, start: str, end: str) -> List[Dict[str, Any]]:
         """按日期范围查询收入记录"""
         return db_query(
-            "SELECT * FROM income_records WHERE received_at >= ? AND received_at <= ? ORDER BY id DESC",
+            "SELECT id, source_type, source_id, client, amount, total_amount, method, payment_method, description, received_at FROM income_records WHERE received_at >= ? AND received_at <= ? ORDER BY id DESC",
             (start, end))
 
     def get_batch_ticket_income(self, ticket_ids: List[int]) -> Dict[int, float]:
@@ -305,7 +307,7 @@ class SqliteFinanceRepository:
     def get_ticket_income_records(self, ticket_id: int) -> List[Dict[str, Any]]:
         """获取工单收入记录明细"""
         return db_query(
-            "SELECT * FROM income_records WHERE source_type='ticket' AND source_id=? ORDER BY id",
+            "SELECT id, source_type, source_id, client, amount, total_amount, method, payment_method, description, received_at FROM income_records WHERE source_type='ticket' AND source_id=? ORDER BY id",
             (ticket_id,))
 
     def get_payment_history(self, ticket_id: int) -> List[Dict[str, Any]]:
@@ -402,7 +404,7 @@ class SqliteFinanceRepository:
 
     def find_income_record(self, record_id: int) -> Optional[Dict[str, Any]]:
         """查询收入记录"""
-        return db_query_one("SELECT * FROM income_records WHERE id = ?", (record_id,))
+        return db_query_one("SELECT id, source_type, source_id, client, amount, total_amount, method, payment_method, description, received_at, created_at FROM income_records WHERE id = ?", (record_id,))
 
     def list_pending_invoices(self) -> List[Dict[str, Any]]:
         """获取待结算发票列表"""
@@ -428,7 +430,8 @@ class SqliteFinanceRepository:
                                   personal: bool = False) -> List[Dict[str, Any]]:
         """按日期范围查询支出记录"""
         return db_query(
-            """SELECT * FROM expense_records
+            """SELECT id, category, vendor, description, amount, paid_at, payment_type, related_ticket_id, is_personal
+               FROM expense_records
                WHERE paid_at >= ? AND paid_at <= ? AND is_personal = ?
                ORDER BY id DESC""",
             (start, end, 1 if personal else 0))
@@ -498,7 +501,7 @@ class SqliteFinanceRepository:
 
     def list_expense_categories(self) -> List[Dict[str, Any]]:
         """获取所有支出分类"""
-        return db_query("SELECT * FROM expense_categories ORDER BY name")
+        return db_query("SELECT id, name, budget_amount FROM expense_categories ORDER BY name")
 
     def create_expense_category(self, name: str, budget: float = 0) -> int:
         """创建支出分类"""
@@ -512,7 +515,7 @@ class SqliteFinanceRepository:
 
     def get_expense_category(self, cat_id: int) -> Optional[Dict[str, Any]]:
         """获取支出分类"""
-        return db_query_one("SELECT * FROM expense_categories WHERE id=?", (cat_id,))
+        return db_query_one("SELECT id, name, budget_amount FROM expense_categories WHERE id=?", (cat_id,))
 
     def delete_expense_category(self, cat_id: int) -> bool:
         """删除支出分类"""
@@ -539,6 +542,7 @@ class SqliteFinanceRepository:
     def list_personal_expenses(self, month: str = None, category: str = None,
                                limit: int = 100) -> List[Dict[str, Any]]:
         """获取个人支出列表"""
+        _cols = "id, category, vendor, description, amount, paid_at, payment_type, is_recurring"
         conditions = ["is_personal = 1"]
         params = []
         if month:
@@ -549,7 +553,7 @@ class SqliteFinanceRepository:
             params.append(category)
         where = " AND ".join(conditions)
         return db_query(
-            f"SELECT * FROM expense_records WHERE {where} ORDER BY id DESC LIMIT ?",
+            f"SELECT {_cols} FROM expense_records WHERE {where} ORDER BY id DESC LIMIT ?",
             params + [limit])
 
     def add_personal_expense(self, data: Dict[str, Any]) -> int:
@@ -619,7 +623,7 @@ class SqliteFinanceRepository:
     def get_recurring_expenses(self) -> List[Dict[str, Any]]:
         """获取循环支出"""
         return db_query(
-            "SELECT * FROM expense_records WHERE is_personal=1 AND is_recurring=1 ORDER BY id")
+            "SELECT id, category, vendor, description, amount, paid_at, payment_type, is_recurring FROM expense_records WHERE is_personal=1 AND is_recurring=1 ORDER BY id")
 
     def check_recurring_exists(self, category: str, month: str) -> bool:
         """检查循环支出是否已存在"""
@@ -633,7 +637,7 @@ class SqliteFinanceRepository:
 
     def get_agreement(self, agreement_id: int) -> Optional[Dict[str, Any]]:
         """获取服务协议"""
-        return db_query_one("SELECT * FROM service_agreements WHERE id=?", (agreement_id,))
+        return db_query_one("SELECT id, agreement_no, client, amount, paid_amount, status, start_date, end_date, paid_at, notes, created_at, updated_at FROM service_agreements WHERE id=?", (agreement_id,))
 
     def update_agreement_payment(self, agreement_id: int, paid_amount: float,
                                  paid_at: str) -> bool:
@@ -649,7 +653,7 @@ class SqliteFinanceRepository:
     def list_active_agreements(self) -> List[Dict[str, Any]]:
         """获取活跃服务协议"""
         return db_query(
-            "SELECT * FROM service_agreements WHERE status='active' ORDER BY id")
+            "SELECT id, agreement_no, client, amount, paid_amount, status, start_date, end_date, notes FROM service_agreements WHERE status='active' ORDER BY id")
 
     # ===== 看板扩展 =====
 
@@ -840,7 +844,7 @@ class SqliteFinanceRepository:
                   operator=operator)
 
     def get_supplier(self, supplier_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM suppliers WHERE id = ?", (supplier_id,))
+        return db_query_one("SELECT id, name, contact, phone, address, notes, bank_name, bank_account, payment_terms FROM suppliers WHERE id = ?", (supplier_id,))
 
     def get_batch_profit(self, ticket_ids: List[int]) -> List[Dict[str, Any]]:
         """批量获取工单利润原始数据（利润计算由Service层完成）"""

@@ -49,12 +49,12 @@ class SqliteReminderRepository:
 
     def get(self, reminder_id: int) -> Optional[Dict[str, Any]]:
         """按ID查提醒"""
-        return db_query_one("SELECT * FROM ticket_reminders WHERE id=?", (reminder_id,))
+        return db_query_one("SELECT id, ticket_id, remind_at, message, is_sent, created_at FROM ticket_reminders WHERE id=?", (reminder_id,))
 
     def get_by_ticket(self, ticket_id: int) -> List[Dict[str, Any]]:
         """按工单查提醒列表"""
         return db_query(
-            "SELECT * FROM ticket_reminders WHERE ticket_id=? ORDER BY id",
+            "SELECT id, ticket_id, remind_at, message, is_sent FROM ticket_reminders WHERE ticket_id=? ORDER BY id",
             (ticket_id,))
 
     def get_active(self) -> List[Dict[str, Any]]:

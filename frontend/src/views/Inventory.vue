@@ -5,6 +5,7 @@
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-sm btn-outline-primary" @click="activeTab = 'logs'">流水</button>
         <button class="btn btn-sm btn-outline-warning" @click="activeTab = 'alerts'" v-if="alerts.length">预警 ({{ alerts.length }})</button>
+        <button class="btn btn-sm btn-outline-success" @click="doExport"><i class="bi bi-download me-1"></i>导出</button>
       </div>
     </div>
 
@@ -99,6 +100,15 @@
         <div class="col-md-4"><label class="form-label">备注</label><input v-model="countForm.notes" class="form-control"></div>
         <div class="col-12"><button type="submit" class="btn btn-warning" :disabled="counting">{{ counting ? '处理中...' : '提交盘点' }}</button></div>
       </form>
+      <hr>
+      <h5 class="mb-3">库存调拨</h5>
+      <form @submit.prevent="doTransfer" class="row g-2">
+        <div class="col-md-3"><label class="form-label">选择商品</label><GoodsSelector @select="onTransferGoodsSelect" /></div>
+        <div class="col-md-3"><label class="form-label">调拨数量</label><input v-model.number="transferForm.quantity" type="number" class="form-control" min="1" required></div>
+        <div class="col-md-3"><label class="form-label">目标仓库</label><input v-model="transferForm.target_warehouse" class="form-control" placeholder="目标仓库名称"></div>
+        <div class="col-md-3"><label class="form-label">备注</label><input v-model="transferForm.notes" class="form-control"></div>
+        <div class="col-12"><button type="submit" class="btn btn-info" :disabled="transferring">{{ transferring ? '处理中...' : '提交调拨' }}</button></div>
+      </form>
     </div>
 
     <!-- Sales Tab -->
@@ -166,11 +176,13 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'Inventory' })
 import { ref, onMounted } from 'vue'
 import { inventoryApi } from '@/api/inventory'
 import ClientSelector from '@/components/selectors/ClientSelector.vue'
 import GoodsSelector from '@/components/selectors/GoodsSelector.vue'
 import { useToast } from '@/composables/useToast'
+import { toolsApi, downloadBlob } from '@/api/tools'
 
 const { show: showToast } = useToast()
 const activeTab = ref('items')
@@ -181,6 +193,8 @@ const sales = ref([]); const salesLoading = ref(false)
 const adjusting = ref(false); const counting = ref(false)
 const adjustForm = ref({ goods_id: null, quantity: 0, reason: '' })
 const countForm = ref({ goods_id: null, actual_qty: 0, notes: '' })
+const transferForm = ref({ goods_id: null, quantity: 1, target_warehouse: '', notes: '' })
+const transferring = ref(false)
 
 // Sale form
 const showSaleForm = ref(false)
@@ -211,6 +225,12 @@ function onCountGoodsSelect(item) {
   if (!item) return
   const raw = item._raw || item
   countForm.value.goods_id = raw.id
+}
+
+function onTransferGoodsSelect(item) {
+  if (!item) return
+  const raw = item._raw || item
+  transferForm.value.goods_id = raw.id
 }
 
 async function createSale() {
@@ -271,5 +291,28 @@ async function doCount() {
   try { await inventoryApi.count(countForm.value); showToast('盘点成功', 'success'); await loadItems() }
   catch (e) { showToast('盘点失败: ' + (e.response?.data?.error || e.message), 'danger') } finally { counting.value = false }
 }
-function alertPurchase(a) { showToast(`请前往采购模块为 ${a.name} 补货`, 'info') }
+async function doTransfer() {
+  transferring.value = true
+  try { await inventoryApi.transfer(transferForm.value); showToast('调拨成功', 'success'); await loadItems() }
+  catch (e) { showToast('调拨失败: ' + (e.response?.data?.error || e.message), 'danger') } finally { transferring.value = false }
+}
+async function alertPurchase(a) {
+  try {
+    await inventoryApi.alertPurchase(a.goods_id || a.id, { goods_name: a.name || a.product_name })
+    showToast(`已为 ${a.name || a.product_name} 创建采购单`, 'success')
+  } catch (e) {
+    showToast('创建采购失败: ' + (e.response?.data?.error || e.message), 'danger')
+  }
+}
+
+async function doExport() {
+  try {
+    const res = await toolsApi.exportEquipment()
+    const blob = res.data || res
+    downloadBlob(blob, '库存导出.csv')
+    showToast('库存数据已导出', 'success')
+  } catch (e) {
+    showToast('导出失败: ' + (e.response?.data?.error || e.message), 'danger')
+  }
+}
 </script>

@@ -27,7 +27,7 @@ def create_goods():
     if not data.get("name"):
         return jsonify({"error": "请提供商品名称"}), 400
     result = svc.create_goods(data)
-    return jsonify({"message": result["message"]}), 201
+    return jsonify({"message": result["message"], "id": result["id"]}), 201
 
 
 @bp_goods.route("/<int:goods_id>")

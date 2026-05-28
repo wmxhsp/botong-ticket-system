@@ -28,7 +28,7 @@ class SqliteInventoryRepository:
     # ===== 商品查询 =====
 
     def get_goods(self, goods_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM goods WHERE id = ?", (goods_id,))
+        return db_query_one("SELECT id, name, sku, category_id, unit, is_bulk, cost_price, min_stock, max_stock, updated_at FROM goods WHERE id = ?", (goods_id,))
 
     def count_items_by_product(self, goods_id: int) -> int:
         row = db_query_one(
@@ -115,28 +115,28 @@ class SqliteInventoryRepository:
     # ===== 库存项 CRUD =====
 
     def find_item(self, item_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM inventory_items WHERE id = ?", (item_id,))
+        return db_query_one("SELECT id, product_id, serial_no, batch_no, bulk_quantity, location, warehouse_id, status, ticket_id, unit_cost, purchase_order_id, sale_id, notes, received_at, created_at FROM inventory_items WHERE id = ?", (item_id,))
 
     def find_bulk_in_stock(self, goods_id: int) -> Optional[Dict[str, Any]]:
         return db_query_one(
-            "SELECT * FROM inventory_items WHERE product_id = ? AND status = 'in_stock'",
+            "SELECT id, product_id, serial_no, batch_no, bulk_quantity, location, warehouse_id, status, unit_cost FROM inventory_items WHERE product_id = ? AND status = 'in_stock'",
             (goods_id,))
 
     def find_bulk_in_stock_for_update(self, conn, goods_id: int) -> Optional[Dict[str, Any]]:
         cursor = conn.execute(
-            "SELECT * FROM inventory_items WHERE product_id = ? AND status = 'in_stock'",
+            "SELECT id, product_id, batch_no, bulk_quantity, status, unit_cost FROM inventory_items WHERE product_id = ? AND status = 'in_stock'",
             (goods_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
     def find_pieces_in_stock(self, goods_id: int, limit: int) -> List[Dict[str, Any]]:
         return db_query(
-            "SELECT * FROM inventory_items WHERE product_id = ? AND status = 'in_stock' LIMIT ?",
+            "SELECT id, product_id, serial_no, batch_no, status, unit_cost FROM inventory_items WHERE product_id = ? AND status = 'in_stock' LIMIT ?",
             (goods_id, limit))
 
     def find_pieces_in_stock_for_update(self, conn, goods_id: int, limit: int) -> List[Dict[str, Any]]:
         cursor = conn.execute(
-            "SELECT * FROM inventory_items WHERE product_id = ? AND status = 'in_stock' LIMIT ?",
+            "SELECT id, product_id, serial_no, status, unit_cost FROM inventory_items WHERE product_id = ? AND status = 'in_stock' LIMIT ?",
             (goods_id, limit))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -503,7 +503,8 @@ class SqliteInventoryRepository:
 
             if goods.get("is_bulk"):
                 existing = conn.execute("""
-                    SELECT * FROM inventory_items
+                    SELECT id, product_id, batch_no, bulk_quantity, status, unit_cost
+                    FROM inventory_items
                     WHERE product_id = ? AND status = 'in_stock'
                 """, (goods_id,)).fetchone()
                 if existing:
@@ -545,7 +546,7 @@ class SqliteInventoryRepository:
         return sale_id
 
     def get_sale_record(self, sale_id: int) -> Optional[Dict[str, Any]]:
-        return db_query_one("SELECT * FROM sales_records WHERE id = ?", (sale_id,))
+        return db_query_one("SELECT id, client, product_id, product_name, product_type, quantity, unit_price, cost_price, total_amount, profit, payment_method, status, notes, validity_days, ticket_id, salesperson, created_at, paid_at FROM sales_records WHERE id = ?", (sale_id,))
 
     def renew_sale(self, sale_id: int, client: str, product_id: int,
                    product_name: str, product_type: str, quantity: int,
@@ -580,7 +581,7 @@ class SqliteInventoryRepository:
 
     def list_locations(self) -> list:
         try:
-            return db_query("SELECT * FROM locations ORDER BY sort_order, name") or []
+            return db_query("SELECT id, name, description, sort_order FROM locations ORDER BY sort_order, name") or []
         except Exception:
             return []
 
@@ -617,7 +618,7 @@ class SqliteInventoryRepository:
 
     def list_warehouses(self) -> list:
         try:
-            return db_query("SELECT * FROM warehouses ORDER BY sort_order, name") or []
+            return db_query("SELECT id, name, address, manager, sort_order FROM warehouses ORDER BY sort_order, name") or []
         except Exception:
             return []
 

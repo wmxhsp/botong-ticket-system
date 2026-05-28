@@ -111,29 +111,14 @@ def db_execute(sql: str, params: tuple = ()) -> int:
     """
     执行 SQL（INSERT/UPDATE/DELETE）
     返回: 最后插入的行ID（INSERT）或影响的行数（UPDATE/DELETE）
+
+    注意：不再临时关闭外键约束。对于全表删除（测试 teardown），
+    应先清理子表再删除主表，或使用 repo.delete() 的级联删除逻辑。
     """
     with get_db() as conn:
-        # 在测试 teardown 场景，部分用例会执行 "DELETE FROM tickets"，
-        # 如果存在子表引用会触发 FOREIGN KEY 约束。为避免测试过程被阻塞，
-        # 对完全删除票据表的语句，临时关闭外键检查执行删除，然后恢复。
-        sql_norm = sql.strip().upper()
-        disabled_fk = False
-        try:
-            if sql_norm == "DELETE FROM TICKETS":
-                try:
-                    conn.execute("PRAGMA foreign_keys = OFF")
-                    disabled_fk = True
-                except Exception:
-                    pass
-            cursor = conn.execute(sql, params)
-            conn.commit()
-            return cursor.lastrowid or cursor.rowcount
-        finally:
-            if disabled_fk:
-                try:
-                    conn.execute("PRAGMA foreign_keys = ON")
-                except Exception:
-                    pass
+        cursor = conn.execute(sql, params)
+        conn.commit()
+        return cursor.lastrowid or cursor.rowcount
 
 
 def db_query(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
@@ -743,7 +728,7 @@ def _ensure_foundation_tables():
 
 
 # ===== 数据库 Schema 版本管理 =====
-_SCHEMA_VERSION = 22
+_SCHEMA_VERSION = 23
 
 
 def _init_schema_version():
@@ -786,6 +771,7 @@ def _run_migrations(from_version):
         20: "tickets.parts_fee 配件费字段",
         21: "ticket_no NOT NULL约束 + NULL编号数据修复",
         22: "技术人员天薪/包工成本率字段(daily_rate/package_rate/daily_cost_rate/package_cost)",
+        23: "性能优化：复合索引+部分索引+审计归档表+幂等缓存过期索引",
     }
     for v in range(from_version + 1, _SCHEMA_VERSION + 1):
         if v in migrations:
@@ -816,6 +802,7 @@ def maintain_indexes():
 def maintain_vacuum():
     """
     定期执行 VACUUM，收缩 WAL 模式数据库文件体积。
+    WAL 模式下 VACUUM 需要无活跃读事务，先执行 checkpoint 再 VACUUM。
     """
     import threading
     import time as _time
@@ -823,15 +810,67 @@ def maintain_vacuum():
     def _vacuum_bg():
         _time.sleep(5)
         try:
+            # 先 checkpoint 收缩 WAL 文件
+            with get_db() as conn:
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            # 再 VACUUM 收缩主数据库文件
             with get_db() as conn:
                 conn.execute("VACUUM")
             print("[DB] VACUUM 完成，数据库文件已收缩")
         except Exception as e:
-            print(f"[DB] VACUUM 失败: {e}")
+            print(f"[DB] VACUUM 失败（可能存在活跃事务）: {e}")
 
     t = threading.Thread(target=_vacuum_bg, daemon=True)
     t.start()
     return t
+
+
+def run_maintenance():
+    """
+    执行定期维护任务（建议每天/每周调用一次）。
+    1. 清理过期幂等缓存
+    2. 归档90天以上的审计日志
+    3. ANALYZE 更新统计信息
+    4. WAL checkpoint 收缩日志文件
+    """
+    import time as _time
+    now_ts = _time.time()
+
+    # 1. 清理过期幂等缓存
+    try:
+        db_execute("DELETE FROM _idempotent_cache WHERE expires_at < ?", (now_ts,))
+        print("[DB] 过期幂等缓存已清理")
+    except Exception as e:
+        print(f"[DB] 清理幂等缓存失败: {e}")
+
+    # 2. 归档审计日志（90天以上）
+    try:
+        cutoff = "datetime('now', '-90 days')"
+        archived = db_execute(
+            f"INSERT INTO audit_log_archive (id, action, table_name, record_id, old_data, new_data, operator, ip_address, created_at) "
+            f"SELECT id, action, table_name, record_id, old_data, new_data, operator, ip_address, created_at "
+            f"FROM audit_log WHERE created_at < {cutoff}"
+        )
+        db_execute(f"DELETE FROM audit_log WHERE created_at < {cutoff}")
+        print(f"[DB] 审计日志归档完成，影响 {archived} 条")
+    except Exception as e:
+        print(f"[DB] 审计日志归档失败: {e}")
+
+    # 3. ANALYZE 更新统计信息
+    try:
+        with get_db() as conn:
+            conn.execute("ANALYZE")
+        print("[DB] ANALYZE 完成")
+    except Exception as e:
+        print(f"[DB] ANALYZE 失败: {e}")
+
+    # 4. WAL checkpoint
+    try:
+        with get_db() as conn:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        print("[DB] WAL checkpoint 完成")
+    except Exception as e:
+        print(f"[DB] WAL checkpoint 失败: {e}")
 
 
 # 在模块导入时确保基础表与索引存在，便于测试/运行环境自动就绪

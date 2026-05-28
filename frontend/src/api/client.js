@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_BASE || '/api/v1',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -19,7 +19,12 @@ client.interceptors.request.use((config) => {
 
 // Response interceptor - error handling
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config?.responseType === 'blob') {
+      return response
+    }
+    return response.data
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('bt_auth_token')
@@ -36,9 +41,11 @@ client.interceptors.response.use(
 export async function fetchCsrfToken() {
   try {
     const { data } = await axios.get('/api/v1/csrf-token')
-    localStorage.setItem('bt_csrf_token', data.csrf_token || '')
+    const token = data.csrf_token || ''
+    localStorage.setItem('bt_csrf_token', token)
+    return token
   } catch {
-    // Silently fail
+    return ''
   }
 }
 

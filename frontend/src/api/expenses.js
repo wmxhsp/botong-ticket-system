@@ -2,7 +2,7 @@ import client from './client'
 
 export const expenseApi = {
   listCategories() {
-    return client.get('/expenses/categories').then(r => r.data)
+    return client.get('/expenses/categories')
   },
 
   createCategory(data) {
@@ -18,7 +18,7 @@ export const expenseApi = {
   },
 
   list() {
-    return client.get('/expenses/').then(r => r.data)
+    return client.get('/expenses/')
   },
 
   create(data) {
@@ -34,7 +34,7 @@ export const expenseApi = {
   },
 
   listPersonal(params = {}) {
-    return client.get('/expenses/personal', { params }).then(r => r.data)
+    return client.get('/expenses/personal', { params })
   },
 
   addPersonal(data) {
@@ -42,11 +42,11 @@ export const expenseApi = {
   },
 
   personalSummary(params = {}) {
-    return client.get('/expenses/personal/summary', { params }).then(r => r.data)
+    return client.get('/expenses/personal/summary', { params })
   },
 
   getPersonalBudget(params = {}) {
-    return client.get('/expenses/personal/budget', { params }).then(r => r.data)
+    return client.get('/expenses/personal/budget', { params })
   },
 
   setPersonalBudget(data) {
@@ -54,7 +54,7 @@ export const expenseApi = {
   },
 
   listRecurring() {
-    return client.get('/expenses/personal/recurring').then(r => r.data)
+    return client.get('/expenses/personal/recurring')
   },
 
   createRecurring(data) {

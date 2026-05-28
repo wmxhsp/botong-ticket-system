@@ -2,7 +2,7 @@ import client from './client'
 
 export const goodsApi = {
   list(params = {}) {
-    return client.get('/goods/', { params }).then(r => r.data)
+    return client.get('/goods/', { params })
   },
 
   create(data) {
@@ -10,7 +10,7 @@ export const goodsApi = {
   },
 
   get(goodsId) {
-    return client.get(`/goods/${goodsId}`).then(r => r.data)
+    return client.get(`/goods/${goodsId}`)
   },
 
   update(goodsId, data) {
@@ -22,7 +22,7 @@ export const goodsApi = {
   },
 
   listCategories() {
-    return client.get('/goods/categories').then(r => r.data)
+    return client.get('/goods/categories')
   },
 
   createCategory(data) {
@@ -30,7 +30,7 @@ export const goodsApi = {
   },
 
   getCategory(catId) {
-    return client.get(`/goods/categories/${catId}`).then(r => r.data)
+    return client.get(`/goods/categories/${catId}`)
   },
 
   updateCategory(catId, data) {
@@ -42,7 +42,7 @@ export const goodsApi = {
   },
 
   listTypesByCategory(catId) {
-    return client.get(`/goods/categories/${catId}/types`).then(r => r.data)
+    return client.get(`/goods/categories/${catId}/types`)
   },
 
   createTypeInCategory(catId, data) {
@@ -50,7 +50,7 @@ export const goodsApi = {
   },
 
   listAllTypes() {
-    return client.get('/goods/types').then(r => r.data)
+    return client.get('/goods/types')
   },
 
   createType(data) {

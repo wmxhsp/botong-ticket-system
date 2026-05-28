@@ -63,21 +63,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { dashboardApi } from '@/api/dashboard'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { formatMoney } from '@/utils/format'
-import {
-  Chart,
-  DoughnutController, ArcElement,
-  Tooltip, Legend
-} from 'chart.js'
-
-Chart.register(
-  DoughnutController, ArcElement,
-  Tooltip, Legend
-)
+import '@/plugins/chart'
+import { Chart } from 'chart.js'
 
 const dashboard = ref({})
 const recentTickets = ref([])
@@ -101,6 +93,13 @@ onMounted(async () => {
     const data = await dashboardApi.getStockAlerts()
     alerts.value = Array.isArray(data) ? data : data?.alerts || []
   } catch (e) { /* ignore */ }
+})
+
+onBeforeUnmount(() => {
+  if (statusChart) {
+    statusChart.destroy()
+    statusChart = null
+  }
 })
 
 function renderChart(stats) {

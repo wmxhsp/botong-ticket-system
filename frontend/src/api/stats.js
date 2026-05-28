@@ -6,16 +6,16 @@ import client from './client'
 export const statsApi = {
   /** 全局统计 */
   getAll(params = {}) {
-    return client.get('/stats/', { params }).then(r => r.data)
+    return client.get('/stats/', { params })
   },
 
   /** 仪表盘摘要 */
   getSummary(params = {}) {
-    return client.get('/dashboard/summary', { params }).then(r => r.data)
+    return client.get('/dashboard/summary', { params })
   },
 
   /** 库存预警（仪表盘用） */
   getStockAlerts(params = {}) {
-    return client.get('/stock/alerts', { params }).then(r => r.data)
+    return client.get('/stock/alerts', { params })
   },
 }

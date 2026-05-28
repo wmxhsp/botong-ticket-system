@@ -1,5 +1,17 @@
 import { ref } from 'vue'
 
+/**
+ * 全局 Toast 通知 composable
+ *
+ * 提供 success/error/warning/info 四种类型的轻量通知。
+ * 状态为全局共享，可在任意组件中使用。
+ *
+ * @example
+ *   const { toast } = useToast()
+ *   toast.success('保存成功')
+ *   toast.error('网络异常', 6000)
+ */
+
 // Global toast state
 const toasts = ref([])
 let toastId = 0

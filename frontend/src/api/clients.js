@@ -10,12 +10,27 @@ import client from './client'
 export const clientApi = {
   /** 客户列表 */
   list(params = {}) {
-    return client.get('/clients/', { params }).then(r => r.data)
+    return client.get('/clients/', { params })
   },
 
   /** 客户详情（含统计） */
   getByName(name) {
-    return client.get('/clients/' + encodeURIComponent(name)).then(r => r.data)
+    return client.get('/clients/' + encodeURIComponent(name))
+  },
+
+  /** 客户画像 */
+  getProfile(name) {
+    return client.get('/clients/' + encodeURIComponent(name) + '/profile')
+  },
+
+  /** 客户概览（工单/设备/财务汇总） */
+  getOverview(name) {
+    return client.get('/clients/' + encodeURIComponent(name) + '/overview')
+  },
+
+  /** 客户等级配置 */
+  getTierConfig() {
+    return client.get('/clients/tier-config')
   },
 
   /** 创建客户 */

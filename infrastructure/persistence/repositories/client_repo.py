@@ -29,7 +29,7 @@ class SqliteClientRepository:
 
     def find_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """按名称查询客户"""
-        client = db_query_one("SELECT * FROM clients WHERE name = ?", (name,))
+        client = db_query_one("SELECT id, name, contact, phone, email, address, payment_terms, notes, created_at, updated_at FROM clients WHERE name = ?", (name,))
         if not client:
             return None
         client["active_tickets"] = db_query_one(

@@ -75,14 +75,16 @@ class TestSqliteTicketRepository:
             """CREATE TABLE IF NOT EXISTS history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ticket_id INTEGER, action TEXT, note TEXT,
-                operator TEXT, timestamp TEXT
+                operator TEXT, timestamp TEXT,
+                by TEXT DEFAULT '', changes TEXT DEFAULT ''
             )""",
             """CREATE TABLE IF NOT EXISTS materials (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ticket_id INTEGER, name TEXT, product_name TEXT,
                 product_id INTEGER, quantity REAL DEFAULT 1,
                 unit_price REAL DEFAULT 0, total_cost REAL DEFAULT 0, total REAL DEFAULT 0,
-                notes TEXT DEFAULT '', created_at TEXT
+                notes TEXT DEFAULT '', created_at TEXT,
+                inventory_item_ids TEXT DEFAULT '', goods_id INTEGER, sale_id INTEGER
             )""",
             """CREATE TABLE IF NOT EXISTS income_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -292,14 +294,16 @@ class TestTicketService:
             """CREATE TABLE IF NOT EXISTS history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ticket_id INTEGER, action TEXT, note TEXT,
-                operator TEXT, timestamp TEXT
+                operator TEXT, timestamp TEXT,
+                by TEXT DEFAULT '', changes TEXT DEFAULT ''
             )""",
             """CREATE TABLE IF NOT EXISTS materials (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ticket_id INTEGER, name TEXT, product_name TEXT,
                 product_id INTEGER, quantity REAL DEFAULT 1,
                 unit_price REAL DEFAULT 0, total_cost REAL DEFAULT 0, total REAL DEFAULT 0,
-                notes TEXT DEFAULT '', created_at TEXT
+                notes TEXT DEFAULT '', created_at TEXT,
+                inventory_item_ids TEXT DEFAULT '', goods_id INTEGER, sale_id INTEGER
             )""",
             """CREATE TABLE IF NOT EXISTS income_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

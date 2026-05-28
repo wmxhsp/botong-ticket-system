@@ -8,6 +8,9 @@
       <button class="btn btn-primary btn-sm" @click="openCreateModal">
         <i class="bi bi-plus-lg me-1"></i>新建设备
       </button>
+      <button class="btn btn-outline-success btn-sm ms-2" @click="doExport">
+        <i class="bi bi-download me-1"></i>导出
+      </button>
     </div>
 
     <div class="bt-filter-bar">
@@ -145,10 +148,12 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'Equipment' })
 import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { equipmentApi } from '@/api/equipment'
 import { useToast } from '@/composables/useToast'
+import { toolsApi, downloadBlob } from '@/api/tools'
 import ClientSelector from '@/components/selectors/ClientSelector.vue'
 
 const { show: showToast } = useToast()
@@ -252,6 +257,17 @@ async function submitForm() {
     showToast(e.response?.data?.error || '操作失败', 'danger')
   } finally {
     submitting.value = false
+  }
+}
+
+async function doExport() {
+  try {
+    const res = await toolsApi.exportEquipment()
+    const blob = res.data || res
+    downloadBlob(blob, '设备导出.csv')
+    showToast('设备数据已导出', 'success')
+  } catch (e) {
+    showToast('导出失败: ' + (e.response?.data?.error || e.message), 'danger')
   }
 }
 </script>

@@ -126,6 +126,11 @@
           <i class="bi bi-credit-card me-1"></i>收款记录
         </button>
       </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'; loadOverview()">
+          <i class="bi bi-grid me-1"></i>客户概览
+        </button>
+      </li>
     </ul>
 
     <!-- 工单记录 -->
@@ -231,6 +236,59 @@
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- 客户概览 -->
+    <div v-if="activeTab === 'overview'" class="card p-2">
+      <div v-if="overviewLoading" class="text-center py-4"><div class="bt-spinner"></div> 加载概览...</div>
+      <template v-else-if="overviewData">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3">
+            <div class="card p-2 text-center">
+              <div class="stat-value">{{ overviewData.total_tickets || 0 }}</div>
+              <div class="stat-label">总工单</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card p-2 text-center">
+              <div class="stat-value text-success">{{ formatMoney(overviewData.total_revenue) }}</div>
+              <div class="stat-label">总收入</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card p-2 text-center">
+              <div class="stat-value text-danger">{{ formatMoney(overviewData.total_cost) }}</div>
+              <div class="stat-label">总成本</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card p-2 text-center">
+              <div class="stat-value">{{ overviewData.equipment_count || 0 }}</div>
+              <div class="stat-label">设备数</div>
+            </div>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6" v-if="overviewData.recent_tickets?.length">
+            <h6 class="mb-2"><i class="bi bi-clock-history me-1"></i>最近工单</h6>
+            <ul class="list-group">
+              <li v-for="t in overviewData.recent_tickets.slice(0, 5)" :key="t.id" class="list-group-item d-flex justify-content-between align-items-center small">
+                <router-link :to="'/tickets/' + t.id" class="text-decoration-none fw-bold">{{ t.ticket_no || '-' }}</router-link>
+                <span class="badge" :class="t.status === 'closed' || t.status === 'completed' ? 'bg-success' : 'bg-info'">{{ t.status }}</span>
+              </li>
+            </ul>
+          </div>
+          <div class="col-md-6" v-if="overviewData.equipment?.length">
+            <h6 class="mb-2"><i class="bi bi-pc-display me-1"></i>关键设备</h6>
+            <ul class="list-group">
+              <li v-for="eq in overviewData.equipment.slice(0, 5)" :key="eq.id" class="list-group-item small">
+                <strong>{{ eq.name }}</strong> <span class="text-muted">{{ eq.model || '' }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </template>
+      <div v-else class="text-center py-4 text-muted">暂无概览数据</div>
     </div>
 
     <!-- 编辑弹窗 -->
@@ -344,6 +402,10 @@ const submitting = ref(false)
 const editForm = ref({ name: '', contact: '', phone: '', email: '', address: '', notes: '' })
 const showAddEquipment = ref(false)
 const equipForm = ref({ name: '', model: '', serial_no: '', location: '', warranty_expiry: '' })
+
+// 客户概览
+const overviewData = ref(null)
+const overviewLoading = ref(false)
 
 let modalInstance = null
 function getModal() {
@@ -479,5 +541,15 @@ async function deleteEquipment(eqId) {
   } catch (e) {
     showToast('删除失败', 'danger')
   }
+}
+
+async function loadOverview() {
+  overviewLoading.value = true
+  try {
+    overviewData.value = await clientApi.getOverview(props.name)
+  } catch (e) {
+    try { overviewData.value = await clientApi.getProfile(props.name) } catch { overviewData.value = null }
+  }
+  finally { overviewLoading.value = false }
 }
 </script>
