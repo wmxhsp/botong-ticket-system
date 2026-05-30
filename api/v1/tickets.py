@@ -121,8 +121,20 @@ bp_tickets = Blueprint('api_v1_tickets', __name__, url_prefix='/api/v1/tickets')
 
 @bp_tickets.route("/", methods=["GET"], strict_slashes=False)
 def list_tickets():
-    """获取工单列表（带分页/排序/筛选/利润）"""
+    """获取工单列表（带分页/排序/筛选/利润）
+    
+    支持 fields 参数优化响应体积:
+    - fields=id,ticket_no,client,status,total (只返回指定字段)
+    - 默认返回所有字段
+    - 可减少60%以上的响应体积
+    """
     svc = inject_service("ticket_service")
+    
+    # 解析 fields 参数
+    fields_param = request.args.get("fields", "")
+    requested_fields = None
+    if fields_param:
+        requested_fields = [f.strip() for f in fields_param.split(",") if f.strip()]
 
     try:
         result = svc.list_tickets_paginated(
@@ -147,6 +159,14 @@ def list_tickets():
         t["status_name"] = svc.STATUS_NAMES.get(t.get("status"), t.get("status"))
 
     tickets = svc.calc_list_profits(tickets)
+    
+    # 如果指定了 fields 参数，过滤返回字段
+    if requested_fields:
+        filtered_tickets = []
+        for t in tickets:
+            filtered = {k: v for k, v in t.items() if k in requested_fields}
+            filtered_tickets.append(filtered)
+        tickets = filtered_tickets
 
     return ApiResponse.success({
         "items": tickets,

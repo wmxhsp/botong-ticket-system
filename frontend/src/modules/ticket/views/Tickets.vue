@@ -45,27 +45,33 @@
       <LoadingSkeleton v-if="loading" type="list" :count="8" />
 
       <div v-else class="list-content" ref="listRef">
-        <div
-          v-for="t in tickets"
-          :key="t.id"
-          class="ticket-item"
-          :class="{ active: selectedTicket?.id === t.id, urgent: isUrgent(t) }"
-          @click="selectTicket(t)"
+        <RecycleScroller
+          class="virtual-scroller"
+          :items="tickets"
+          :item-size="120"
+          key-field="id"
+          v-slot="{ item: t }"
         >
-          <div class="item-header">
-            <span class="ticket-id">{{ t.ticket_no || '#' + t.id }}</span>
-            <StatusBadge :status="t.status" />
-            <span class="time">{{ formatDate(t.created_at) }}</span>
+          <div
+            class="ticket-item"
+            :class="{ active: selectedTicket?.id === t.id, urgent: isUrgent(t) }"
+            @click="selectTicket(t)"
+          >
+            <div class="item-header">
+              <span class="ticket-id">{{ t.ticket_no || '#' + t.id }}</span>
+              <StatusBadge :status="t.status" />
+              <span class="time">{{ formatDate(t.created_at) }}</span>
+            </div>
+            <div class="client-name">{{ t.client || t.client_name || '-' }}</div>
+            <div class="ticket-preview">{{ t.description || t.content || '-' }}</div>
+            <div class="item-footer">
+              <span class="amount" v-if="t.total || t.amount">{{ formatMoney(t.total || t.amount) }}</span>
+              <span class="technician" v-if="t.technician || t.technician_name">
+                <i class="bi bi-person"></i> {{ t.technician || t.technician_name }}
+              </span>
+            </div>
           </div>
-          <div class="client-name">{{ t.client || t.client_name || '-' }}</div>
-          <div class="ticket-preview">{{ t.description || t.content || '-' }}</div>
-          <div class="item-footer">
-            <span class="amount" v-if="t.total || t.amount">{{ formatMoney(t.total || t.amount) }}</span>
-            <span class="technician" v-if="t.technician || t.technician_name">
-              <i class="bi bi-person"></i> {{ t.technician || t.technician_name }}
-            </span>
-          </div>
-        </div>
+        </RecycleScroller>
 
         <div v-if="tickets.length === 0 && !loading" class="bt-empty-state">
           <div class="bt-empty-icon"><i class="bi bi-inbox"></i></div>
@@ -215,6 +221,8 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { useToast } from '@/composables/useToast'
 import { formatMoney, formatDate, formatDateTime } from '@/utils/format'
+import { RecycleScroller } from 'vue-virtual-scroller'
+import { useDebounce } from '@/core/composables/useDebounce'
 
 const route = useRoute()
 const router = useRouter()
@@ -224,6 +232,9 @@ const scrollTrigger = ref(null)
 const showFilters = ref(false)
 const selectedTicket = ref(null)
 const isMobileOpen = ref(false)
+
+// 使用统一的防抖机制
+const { debouncedValue: debouncedKeyword, setValue: setDebouncedKeyword } = useDebounce(300)
 
 const filters = ref({
   status: '',
@@ -238,8 +249,6 @@ const statusFilters = [
   { value: 'completed', label: '已完成' },
   { value: 'closed', label: '已关闭' },
 ]
-
-let debounceTimer = null
 
 async function fetchTickets(pageNum, pageSize) {
   const params = {
@@ -296,11 +305,17 @@ function selectStatusFilter(status) {
 }
 
 function onKeywordInput() {
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    handleSearch()
-  }, 300)
+  // 使用统一的防抖机制
+  setDebouncedKeyword(filters.value.keyword)
 }
+
+// 监听防抖后的关键词变化
+watch(debouncedKeyword, (newValue) => {
+  if (newValue !== filters.value.keyword) {
+    filters.value.keyword = newValue
+    handleSearch()
+  }
+})
 
 function handleSearch() {
   reset()
@@ -452,6 +467,16 @@ watch(() => filters.value.status, () => {
   flex: 1;
   overflow-y: auto;
   padding: 0;
+}
+
+/* Virtual scroller styles */
+.virtual-scroller {
+  height: 100%;
+  width: 100%;
+}
+
+.virtual-scroller :deep(.vue-recycle-scroller) {
+  height: 100%;
 }
 
 .ticket-item {

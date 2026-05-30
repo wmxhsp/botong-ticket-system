@@ -9,6 +9,9 @@ import './assets/styles/main.css'
 // Chart.js plugin registration (must run before any Chart usage)
 import './plugins/chart.js'
 
+// Virtual scroller for large lists performance
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+
 const app = createApp(App)
 
 // Global error handler — catch component errors, show toast instead of white screen
