@@ -91,7 +91,7 @@ app.py                         # 入口（python app.py 启动）
 frontend/src/
 ├── core/          # 核心基础设施（TS）
 │   ├── api/       # API 客户端（统一响应格式）
-│   ├── types/     # 统一类型定义
+│   ├── types/     # 统一类型定义（含api.ts补充接口）
 │   ├── stores/    # 全局状态（Pinia）
 │   └── composables/  # 组合式函数（命令面板、快捷键、离线同步）
 ├── components/    # 通用组件
@@ -100,9 +100,13 @@ frontend/src/
 │   └── ticket/
 │       └── views/ # QuickTicket（3秒创建）、QuickSettle（一键结算）
 ├── views/         # 页面
-├── api/           # API 封装
+├── api/           # API 封装（24个TypeScript模块）
 └── stores/        # 状态管理
 ```
+
+**新增说明**：
+- API模块已完成TypeScript迁移（24个.ts文件）
+- 类型定义扩展至types/api.ts（18个新接口）
 
 ### 数据库核心关系
 
@@ -129,7 +133,7 @@ clients ──1:N── tickets ──1:N── ticket_service_items
 
 ### 数据现状
 
-| 表 | 记录数 | 说明 |
+| 表/文件 | 记录数/数量 | 说明 |
 |----|--------|------|
 | clients | 4 | 测试客户（需录入真实费率） |
 | technicians | 2 | 测试数据 |
@@ -137,6 +141,9 @@ clients ──1:N── tickets ──1:N── ticket_service_items
 | goods | 14 | 配件商品库 |
 | service_fees | 0 | 服务项目空（需配置常用服务） |
 | suppliers | 0 | 供应商空 |
+| **API TypeScript模块** | **24个** | **已完成迁移（inventory、equipment、goods等）** |
+| **类型定义文件** | **2个** | **types/index.ts + types/api.ts（18个新接口）** |
+| **E2E测试文件** | **6个** | **Playwright测试（core-flow、ticket-create等）** |
 
 ### 测试状态
 
@@ -144,8 +151,10 @@ clients ──1:N── tickets ──1:N── ticket_service_items
 |------|------|
 | 后端测试 | 194 passed |
 | 前端测试 | 65 passed |
-| 前端构建 | ✅ 成功 |
-| 类型检查 | ✅ 零错误 |
+| E2E测试 | 6个Playwright测试文件已创建（待修复登录选择器） |
+| 前端构建 | ✅ 成功（build:fast） |
+| 类型检查 | ⚠️ 部分警告（strict模式暂时禁用） |
+| TypeScript迁移 | ✅ 24个API模块完成迁移，P0核心模块类型完善 |
 
 ### UI v5 重构（2026-05-30）
 
@@ -167,6 +176,8 @@ clients ──1:N── tickets ──1:N── ticket_service_items
 - 统一 API 响应格式 `ApiResponse<T>`
 - 统一类型定义，消除字段冗余
 - 可访问性增强（ARIA 属性、键盘导航、焦点管理）
+- **新增**：Playwright E2E测试框架（6个测试场景）
+- **新增**：types/api.ts补充类型定义（18个接口）
 
 ### MCP 服务配置（6个）
 
@@ -347,6 +358,9 @@ sqlite3 tickets.db ".dump" > backups/tickets_$(date +%Y%m%d).sql
 - [ ] 新增/修改前端页面
 - [ ] 新增/修改 MCP 服务器配置
 - [ ] 技术栈变更
+- [x] **Skills文件夹位置变更**（已移至项目根目录skills/）
+- [x] **API模块TypeScript迁移完成**（24个模块）
+- [x] **E2E测试框架建立**（Playwright）
 
 **更新流程：**
 1. 代码变更完成后，立即检查 AGENTS.md 相关章节

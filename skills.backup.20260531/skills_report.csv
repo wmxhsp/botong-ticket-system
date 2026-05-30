@@ -1,0 +1,19 @@
+filename,title,priority,tags,maintainer,version,read_only_db
+api-module-best-practices.md,api-module-best-practices,high,"[api, frontend, http]",TBD,0.1.0,False
+async-jobs.md,async-jobs,medium,"[async, jobs, queue]",TBD,0.1.0,False
+finance-integration.md,finance-integration,high,"[finance, accounting, expense]",TBD,0.1.0,False
+flask-api-development.md,flask-api-development,high,"[flask, api, backend]",TBD,0.1.0,False
+flask-ddd-architecture.md,flask-ddd-architecture,high,"[flask, ddd, architecture]",TBD,0.1.0,False
+flask-security-hardening.md,flask-security-hardening,medium,"[security, auth, xss]",TBD,0.1.0,False
+idempotency-and-concurrency.md,idempotency-and-concurrency,high,"[idempotent, concurrency, safety]",TBD,0.1.0,False
+inventory-integrity.md,inventory-integrity,high,"[inventory, stock, integrity]",TBD,0.1.0,False
+pinia-best-practices.md,pinia-best-practices,high,"[pinia, state-management, vue3]",TBD,0.1.0,False
+ticket-domain-logic.md,ticket-domain-logic,high,"[ticket, domain, business]",TBD,0.1.0,False
+transactions-and-uow.md,transactions-and-uow,high,"[transaction, uow, database]",TBD,0.1.0,False
+vite-best-practices.md,vite-best-practices,medium,"[vite, build, bundling]",TBD,0.1.0,False
+vue-router-best-practices.md,vue-router-best-practices,high,"[vue-router, routing, navigation]",TBD,0.1.0,False
+vue3-best-practices.md,vue3-best-practices,high,"[vue3, frontend, composition-api]",TBD,0.1.0,False
+mcp-deployment-security.md,mcp-deployment-security,high,"[mcp, security, deployment]",TBD,0.1.0,True
+frontend-best-practices.md,frontend-best-practices,medium,"[frontend, vue, vite]",TBD,0.1.0,False
+skill-observability.md,skill-observability,high,"[observability, monitoring, mcp]",TBD,0.1.0,False
+idempotency-playbook.md,idempotency-playbook,high,"[idempotency, concurrency, ticket]",TBD,0.1.0,False

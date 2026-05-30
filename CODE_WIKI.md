@@ -95,6 +95,7 @@
 | 技术 | 版本 | 用途 |
 |------|------|------|
 | Vue | ^3.4 | UI 框架 |
+| **TypeScript** | ^6.0 | **类型系统（API模块已完成迁移）** |
 | Vue Router | ^4.3 | 路由管理 |
 | Pinia | ^2.1 | 状态管理 |
 | Axios | ^1.7 | HTTP 客户端 |
@@ -102,7 +103,7 @@
 | Chart.js | ^4.4 | 图表可视化 |
 | Vite | ^5.4 | 构建工具 |
 | Vitest | ^4.1 | 单元测试 |
-| TypeScript | ^6.0 | 类型检查 |
+| **Playwright** | latest | **E2E自动化测试** |
 | vue-virtual-scroller | ^2.0.0-beta.8 | 虚拟滚动（性能优化） |
 | VueUse | ^10.x | 组合式工具函数库 |
 | Zod | ^3.x | Schema验证 |
@@ -186,6 +187,11 @@ Vue 3 SPA
 
 ```
 botong-ticket-system/
+├── skills/                         # AI技能文档（29个技能文件）
+│   ├── frontend-best-practices.md  # 前端最佳实践
+│   ├── typescript-migration-guide.md # TypeScript迁移指南
+│   ├── testing-strategy.md         # 测试策略
+│   └── ...                         # 其他技能文档
 ├── app.py                          # Flask 入口
 ├── web/                            # Web 层
 │   ├── app_factory.py              # 应用工厂 (create_app)
@@ -284,13 +290,15 @@ botong-ticket-system/
 │       ├── App.vue                 # 根组件
 │       ├── router/index.js         # 路由配置
 │       ├── stores/                 # Pinia 状态
-│       ├── api/                    # API 封装 (23 模块)
+│       ├── api/                    # API 封装 (24个TypeScript模块)
+│       ├── types/                  # 类型定义 (index.ts + api.ts)
 │       ├── composables/            # 组合式函数 (8 个)
 │       ├── components/             # 组件库
 │       ├── views/                  # 页面视图 (22 个)
 │       ├── utils/                  # 工具函数
 │       ├── plugins/                # 插件注册
 │       └── constants/              # 常量定义
+│   └── e2e/                        # E2E测试 (6个Playwright场景)
 ├── tests/                          # 后端测试
 ├── scripts/                        # 运维脚本
 ├── static/                         # 静态资源
