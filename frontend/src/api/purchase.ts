@@ -3,39 +3,39 @@ import type { ApiResponse } from './schemas'
 import type { PurchaseOrder } from '@/types'
 
 export const purchaseApi = {
-  list() {
+  list(): Promise<ApiResponse<PurchaseOrder[]>> {
     return client.get('/purchase/')
   },
 
-  create(data: any) {
+  create(data: Partial<PurchaseOrder>): Promise<ApiResponse<PurchaseOrder>> {
     return client.post('/purchase/', data)
   },
 
-  stats() {
+  stats(): Promise<ApiResponse<any>> {
     return client.get('/purchase/stats')
   },
 
-  get(poId) {
+  get(poId: number | string): Promise<ApiResponse<PurchaseOrder>> {
     return client.get(`/purchase/${poId}`)
   },
 
-  update(poId: number | string, data: any) {
+  update(poId: number | string, data: Partial<PurchaseOrder>): Promise<ApiResponse<PurchaseOrder>> {
     return client.put(`/purchase/${poId}`, data)
   },
 
-  delete(poId: number | string) {
+  delete(poId: number | string): Promise<ApiResponse<void>> {
     return client.delete(`/purchase/${poId}`)
   },
 
-  receive(poId, data) {
+  receive(poId: number | string, data: Record<string, any>): Promise<ApiResponse<PurchaseOrder>> {
     return client.post(`/purchase/${poId}/receive`, data)
   },
 
-  unpaid() {
+  unpaid(): Promise<ApiResponse<PurchaseOrder[]>> {
     return client.get('/purchase/unpaid')
   },
 
-  pay(poId, data) {
+  pay(poId: number | string, data: Record<string, any>): Promise<ApiResponse<PurchaseOrder>> {
     return client.post(`/purchase/${poId}/pay`, data)
   },
 }
