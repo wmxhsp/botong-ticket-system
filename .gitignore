@@ -10,6 +10,7 @@ build/
 .env
 .venv/
 venv/
+.local/
 
 # 数据库
 *.db
