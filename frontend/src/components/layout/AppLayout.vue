@@ -3,8 +3,8 @@
     <div class="app-sidebar">
       <AppSidebar />
     </div>
-    <div class="app-main" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-      <AppTopBar @toggle-sidebar="toggleSidebar" />
+    <div class="app-main">
+      <AppTopBar />
       <main class="app-content" ref="contentRef">
         <router-view />
       </main>
@@ -22,11 +22,14 @@
       <router-link :to="{name: 'TicketCreate'}" class="nav-item new" title="新建">
         <i class="bi bi-plus-circle-fill"></i><span>新建</span>
       </router-link>
-      <router-link :to="{name: 'Clients'}" class="nav-item" title="客户">
-        <i class="bi bi-people"></i><span>客户</span>
+      <router-link :to="{name: 'InventoryList'}" class="nav-item" title="配件">
+        <i class="bi bi-box-seam"></i><span>配件</span>
       </router-link>
       <router-link :to="{name: 'Finance'}" class="nav-item" title="财务">
         <i class="bi bi-cash-coin"></i><span>财务</span>
+      </router-link>
+      <router-link :to="{name: 'SettingsPage'}" class="nav-item" title="更多">
+        <i class="bi bi-grid-3x3-gap"></i><span>更多</span>
       </router-link>
     </div>
 
@@ -39,21 +42,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import AppSidebar from './AppSidebar.vue'
 import AppTopBar from './AppTopBar.vue'
 import NLPanel from '@/components/common/NLPanel.vue'
 
 const app = useAppStore()
-const sidebarCollapsed = computed(() => app.sidebarCollapsed)
 const showScrollTop = ref(false)
 const contentRef = ref(null)
 let scrollHandler = null
-
-const toggleSidebar = () => {
-  app.toggleSidebar()
-}
 
 onMounted(() => {
   scrollHandler = () => {
@@ -84,11 +82,7 @@ function scrollToTop() {
 .app-main {
   flex: 1; display: flex; flex-direction: column;
   min-width: 0;
-  margin-left: 200px;
-  transition: margin-left 0.3s ease;
-}
-.app-main.sidebar-collapsed {
-  margin-left: 56px;
+  margin-left: 48px;
 }
 .app-content { flex: 1; padding: 12px 14px 14px; }
 
@@ -111,13 +105,21 @@ function scrollToTop() {
   .bt-mobile-bottom-nav .nav-item {
     display: flex; flex-direction: column; align-items: center;
     text-decoration: none; color: var(--bt-gray-400);
-    font-size: 10px; padding: 2px 6px; min-width: 44px;
+    font-size: 10px; padding: 2px 2px; min-width: 0;
+    flex: 1;
     transition: color 0.15s ease;
   }
-  .bt-mobile-bottom-nav .nav-item i { font-size: 18px; margin-bottom: 0; }
+  .bt-mobile-bottom-nav .nav-item i { font-size: 17px; margin-bottom: 1px; }
   .bt-mobile-bottom-nav .nav-item.active { color: #6366f1; }
   .bt-mobile-bottom-nav .nav-item.new i { font-size: 22px; color: #6366f1; }
   .bt-mobile-bottom-nav .nav-item.new span { color: #6366f1; font-weight: 600; }
+
+  /* 超小屏幕进一步压缩 */
+  @media (max-width: 360px) {
+    .bt-mobile-bottom-nav .nav-item { font-size: 9px; padding: 2px 1px; }
+    .bt-mobile-bottom-nav .nav-item i { font-size: 15px; }
+    .bt-mobile-bottom-nav .nav-item.new i { font-size: 20px; }
+  }
 }
 
 @media (min-width: 993px) {

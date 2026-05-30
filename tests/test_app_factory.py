@@ -84,11 +84,11 @@ class TestAuthEndpoints:
     """测试认证端点"""
 
     def test_login_missing_credentials(self, client):
-        resp = client.post("/login", json={})
+        resp = client.post("/api/v1/login", json={})
         assert resp.status_code in (400, 401, 500)
 
     def test_login_wrong_password(self, client):
-        resp = client.post("/login", json={"pwd": "wrong_password_xyz"})
+        resp = client.post("/api/v1/login", json={"pwd": "wrong_password_xyz"})
         # 可能是 401（密码错误）或 500（系统未初始化密码）
         assert resp.status_code in (401, 500)
 

@@ -399,3 +399,28 @@ class DashboardService:
                 f"• 收入：本月 ¥{round(monthly_income, 2)}，今日 ¥{round(today_income, 2)}"
             ),
         }
+
+    def get_today_stats(self) -> Dict[str, Any]:
+        ticket_svc = self._ticket_service
+        finance_svc = self._finance_service
+
+        now = datetime.now()
+        today = now.strftime("%Y-%m-%d")
+
+        stats = ticket_svc.get_status_stats()
+        today_tickets_data = ticket_svc.list_tickets(date_from=today, date_to=today, per_page=1)
+        today_tickets_count = today_tickets_data.get("total", 0) if isinstance(today_tickets_data, dict) else 0
+
+        today_income = finance_svc.get_monthly_income(today, today) if finance_svc else 0
+
+        open_count = stats.get("open", 0) + stats.get("assigned", 0)
+        in_progress = stats.get("in-progress", 0)
+        pending_payment = stats.get("pending-payment", 0)
+
+        return {
+            "date": today,
+            "today_tickets": today_tickets_count,
+            "today_income": round(today_income, 2),
+            "pending_tickets": open_count + in_progress,
+            "pending_settlement": pending_payment,
+        }

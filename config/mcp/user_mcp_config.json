@@ -1,36 +1,16 @@
 {
     "mcpServers": {
-        "Framelink Figma MCP": {
-            "command": "npx",
+        "SearXNG": {
+            "command": "node",
             "args": [
-                "-y",
-                "figma-developer-mcp",
-                "--stdio"
+                "/Users/supeng/Documents/botong-ticket-system/config/mcp/searxng-mcp-server.js"
             ],
             "env": {
-                "FIGMA_API_KEY": "<your-figma-api-key>"
-            }
-        },
-        "Redis": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-redis",
-                "redis://localhost:6379"
-            ]
-        },
-        "GitHub": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-github"
-            ],
-            "env": {
-                "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
+                "SEARXNG_URL": "http://localhost:8080"
             }
         },
         "SQLite": {
-            "command": "uvx",
+            "command": "/Users/supeng/.local/bin/uvx",
             "args": [
                 "mcp-server-sqlite",
                 "--db-path",
@@ -52,37 +32,18 @@
                 "@modelcontextprotocol/server-fetch"
             ]
         },
-        "Time": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-time"
-            ]
-        },
-        "Everything": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-everything"
-            ],
-            "workingDirectory": "/Users/supeng/Documents/botong-ticket-system"
-        },
-        "Slack": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-slack"
-            ],
-            "env": {
-                "SLACK_BOT_TOKEN": "<your-slack-bot-token>",
-                "SLACK_TEAM_ID": "<your-team-id>"
-            }
-        },
         "Sequential Thinking": {
             "command": "npx",
             "args": [
                 "-y",
                 "@modelcontextprotocol/server-sequential-thinking"
+            ]
+        },
+        "Puppeteer": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-puppeteer"
             ]
         }
     },

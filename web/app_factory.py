@@ -24,6 +24,18 @@ def create_app(testing=False):
     from flask import Flask, jsonify, request, send_from_directory
     from flask_restx import Api, fields, Resource
 
+    # ===== 加载 .env（仅限开发环境，不影响已设置的环境变量）=====
+    if not testing:
+        try:
+            from dotenv import load_dotenv
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            env_path = os.path.join(base_dir, ".env")
+            if os.path.isfile(env_path):
+                load_dotenv(env_path, override=False)
+                logger.debug("已加载 .env: %s", env_path)
+        except ImportError:
+            pass
+
     # ===== Flask 实例 =====
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app = Flask(__name__, template_folder=os.path.join(base_dir, "templates"),
@@ -223,6 +235,17 @@ def _register_routes(app, api, base_dir):
             return resp
         return jsonify({'error': 'not found'}), 404
 
+    @app.route("/assets/<path:filename>")
+    def _assets(filename):
+        from flask import send_from_directory as _sfd
+        assets_dir = os.path.join(frontend_dist, "assets")
+        filepath = os.path.join(assets_dir, filename)
+        if os.path.exists(filepath):
+            resp = _sfd(assets_dir, filename)
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            return resp
+        return jsonify({'error': 'not found'}), 404
+
     @app.route("/app/")
     @app.route("/app/<path:subpath>")
     def _spa_index(subpath=None):
@@ -231,7 +254,7 @@ def _register_routes(app, api, base_dir):
             filepath = os.path.join(frontend_dist, subpath)
             if os.path.exists(filepath):
                 resp = _sfd(frontend_dist, subpath)
-                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
                 return resp
         resp = _sfd(frontend_dist, "index.html")
         resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"

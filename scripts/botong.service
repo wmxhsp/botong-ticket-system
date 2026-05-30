@@ -1,0 +1,18 @@
+[Unit]
+Description=博通工单系统 (Botong Ticket System)
+After=network.target
+
+[Service]
+Type=simple
+User=%USER%
+WorkingDirectory=%APP_DIR%
+Environment="BOTO_PORT=5053"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/python3 %APP_DIR%/app.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/tmp/boto-system.log
+StandardError=append:/tmp/boto-system.err
+
+[Install]
+WantedBy=multi-user.target

@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useAppStore = defineStore('app', () => {
-  const sidebarCollapsed = ref(false)
   const sidebarMobileOpen = ref(false)
   const theme = ref(localStorage.getItem('bt_theme') || 'auto')
   const pageTitle = ref('仪表盘')
@@ -10,8 +9,6 @@ export const useAppStore = defineStore('app', () => {
   function toggleSidebar() {
     if (window.innerWidth < 993) {
       sidebarMobileOpen.value = !sidebarMobileOpen.value
-    } else {
-      sidebarCollapsed.value = !sidebarCollapsed.value
     }
   }
 
@@ -27,5 +24,5 @@ export const useAppStore = defineStore('app', () => {
     else setTheme('dark')
   }
 
-  return { sidebarCollapsed, sidebarMobileOpen, theme, pageTitle, toggleSidebar, setTheme, toggleTheme }
+  return { sidebarMobileOpen, theme, pageTitle, toggleSidebar, setTheme, toggleTheme }
 })

@@ -26,6 +26,7 @@ _ACCESS_COOKIE = "bt_auth"
 _COOKIE_SECONDS = 28800
 _COOKIE_REFRESH_SECONDS = 7200
 _SALT = ""
+_CACHED_PWD_HASH = None
 
 _MAX_LOGIN_ATTEMPTS = 5
 _LOCKOUT_DURATION = 900
@@ -133,28 +134,40 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 
 
 def _load_access_pwd() -> str:
+    global _CACHED_PWD_HASH
+    # 返回缓存的哈希值（避免 bcrypt 每次生成不同随机盐）
+    if _CACHED_PWD_HASH is not None:
+        return _CACHED_PWD_HASH
+
+    result = ""
     env_pwd = os.environ.get("BOTO_ACCESS_PASSWORD")
     if env_pwd:
-        return _hash_password(env_pwd)
-    try:
-        if _AUTH_CONFIG_PATH and _AUTH_CONFIG_PATH.exists():
-            data = json.loads(_AUTH_CONFIG_PATH.read_text())
-            stored = data.get("password_hash") or data.get("password", "")
-            if not stored:
-                return ""
-            if stored.startswith("bcrypt:") or stored.startswith("sha256:"):
-                return stored
-            if "password_hash" not in data:
-                hashed = _hash_password(stored)
-                _save_access_pwd(hashed)
-                return hashed
-            return "sha256:" + stored
-    except Exception:
-        pass
-    return ""
+        result = _hash_password(env_pwd)
+    else:
+        try:
+            if _AUTH_CONFIG_PATH and _AUTH_CONFIG_PATH.exists():
+                data = json.loads(_AUTH_CONFIG_PATH.read_text())
+                stored = data.get("password_hash") or data.get("password", "")
+                if not stored:
+                    result = ""
+                elif stored.startswith("bcrypt:") or stored.startswith("sha256:"):
+                    result = stored
+                elif "password_hash" not in data:
+                    hashed = _hash_password(stored)
+                    _save_access_pwd(hashed)
+                    result = hashed
+                else:
+                    result = "sha256:" + stored
+        except Exception:
+            pass
+
+    if result:
+        _CACHED_PWD_HASH = result
+    return result
 
 
 def _save_access_pwd(new_pwd: str) -> bool:
+    global _CACHED_PWD_HASH
     try:
         if not (new_pwd.startswith("bcrypt:") or new_pwd.startswith("sha256:")):
             new_pwd = _hash_password(new_pwd)
@@ -163,6 +176,7 @@ def _save_access_pwd(new_pwd: str) -> bool:
         _AUTH_CONFIG_PATH.write_text(
             json.dumps({"password_hash": new_pwd, "hash_algo": algo},
                        ensure_ascii=False, indent=2))
+        _CACHED_PWD_HASH = new_pwd  # 更新缓存
         logger.info(f"✅ 密码已安全存储（{algo}）")
         return True
     except Exception as e:
@@ -336,6 +350,26 @@ def _get_remaining_attempts() -> int:
     return _MAX_LOGIN_ATTEMPTS
 
 
+def _is_api_request():
+    """判断当前请求是否为 API 请求"""
+    if request.is_json:
+        return True
+    accept = request.headers.get("Accept", "")
+    if accept.startswith("application/json"):
+        return True
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    if request.path.startswith("/api/"):
+        return True
+    return False
+
+
+def _unauthorized_response(message="未登录或登录已过期"):
+    """返回统一的 401 JSON 响应"""
+    from flask import jsonify
+    return jsonify({"ok": False, "error": message}), 401
+
+
 def _check_auth():
     if request.remote_addr in ("127.0.0.1", "::1", "localhost"):
         if os.environ.get("BOTO_SKIP_LOCAL_AUTH", "").lower() in ("1", "true", "yes"):
@@ -344,7 +378,8 @@ def _check_auth():
         if current_app.config.get("TESTING"):
             return None
     _PUBLIC_PATHS = ("/docs", "/api/version", "/static/",
-                     "/api/v1/auth/", "/api/v1/health",
+                     "/api/v1/auth/", "/api/v1/health", "/api/v1/csrf-token",
+                     "/api/v1/login", "/api/v1/logout",
                      "/app/", "/app2/", "/login",
                      "/sw.js", "/manifest.json")
     if request.path.startswith(_PUBLIC_PATHS):
@@ -354,8 +389,10 @@ def _check_auth():
     if is_locked:
         minutes = remaining // 60
         seconds = remaining % 60
-        lock_msg = f"❌ 登录失败次数过多，账户已锁定，请在 {minutes}分{seconds}秒 后重试"
-        return _login_page(lock_msg)
+        lock_msg = f"登录失败次数过多，账户已锁定，请在 {minutes}分{seconds}秒 后重试"
+        if _is_api_request():
+            return _unauthorized_response(lock_msg)
+        return _login_page(f"❌ {lock_msg}")
 
     current_pwd = _load_access_pwd()
 
@@ -381,13 +418,16 @@ def _check_auth():
                 samesite="Lax", secure=secure)
             return resp
         _record_failed_login()
-        error = "❌ 密码错误，请重试"
+        error = "密码错误，请重试"
 
     remaining_attempts = _get_remaining_attempts()
     if remaining_attempts <= 2:
         error = f"{error}（剩余 {remaining_attempts} 次尝试机会）" if error else f"剩余 {remaining_attempts} 次尝试机会"
 
-    return _login_page(error)
+    if _is_api_request():
+        return _unauthorized_response(error or "未登录或登录已过期")
+
+    return _login_page(f"❌ {error}" if error else error)
 
 
 def _auto_renew_cookie(cookie_val: str, pwd: str):

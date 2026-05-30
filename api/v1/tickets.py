@@ -138,7 +138,7 @@ def list_tickets():
         )
     except Exception as e:
         logger.error(f"工单列表查询失败: {e}")
-        return jsonify({"tickets": [], "total": 0, "summary": "查询失败，请稍后重试"}), 500
+        return ApiResponse.error("查询失败，请稍后重试", code=500, details={"tickets": [], "total": 0})
 
     tickets = result["tickets"]
     total = result["total"]
@@ -148,12 +148,14 @@ def list_tickets():
 
     tickets = svc.calc_list_profits(tickets)
 
-    return jsonify({
-        "tickets": tickets,
+    return ApiResponse.success({
+        "items": tickets,
         "total": total,
         "page": result["page"],
         "per_page": result["per_page"],
         "total_pages": result["total_pages"],
+        # 向后兼容旧字段（保留30天）
+        "tickets": tickets,
     })
 
 
@@ -169,19 +171,19 @@ def create_ticket():
 
     data = request.get_json(force=True, silent=True) or {}
     if not data:
-        return jsonify({"error": "请提供工单数据"}), 400
+        return ApiResponse.bad_request("请提供工单数据")
 
     try:
         validated = TicketCreateSchema(**{k: v for k, v in data.items()
                                           if k in TicketCreateSchema.model_fields})
         data.update(validated.model_dump(exclude_unset=True))
     except Exception as ve:
-        return jsonify({"error": f"数据验证失败: {str(ve)}"}), 400
+        return ApiResponse.bad_request(f"数据验证失败: {str(ve)}")
 
     if "client" not in data:
-        return jsonify({"error": "缺少必填字段: client"}), 400
+        return ApiResponse.bad_request("缺少必填字段: client")
     if "content" not in data and "title" not in data:
-        return jsonify({"error": "缺少必填字段: content/title"}), 400
+        return ApiResponse.bad_request("缺少必填字段: content/title")
 
     # 幂等性检查
     idempotent_key = (request.headers.get("X-Idempotency-Key") or
@@ -189,7 +191,7 @@ def create_ticket():
     cached = _check_idempotent(idempotent_key)
     if cached:
         logger.info(f"幂等命中: key={idempotent_key[:16]}...")
-        return jsonify({"ticket": cached, "message": "已提交（幂等返回）"}), 200
+        return ApiResponse.success({"ticket": cached}, message="已提交（幂等返回）")
     if "_idempotent_key" in data:
         del data["_idempotent_key"]
 
@@ -228,9 +230,9 @@ def create_ticket():
         if idempotent_key:
             _set_idempotent(idempotent_key, result)
 
-        return jsonify({"message": "工单创建成功", "ticket": result, "summary": summary}), 201
+        return ApiResponse.created({"ticket": result, "summary": summary}, message="工单创建成功")
     except Exception as e:
-        return jsonify({"error": f"创建失败: {str(e)}"}), 400
+        return ApiResponse.bad_request(f"创建失败: {str(e)}")
 
 
 @bp_tickets.route("/<int:ticket_id>", methods=["DELETE"])
@@ -238,7 +240,7 @@ def delete_ticket_by_id(ticket_id: int):
     """删除工单（RESTful 路径参数）"""
     svc = inject_service("ticket_service")
     svc.delete_ticket(ticket_id)
-    return jsonify({"message": "工单已删除"})
+    return ApiResponse.success(message="工单已删除")
 
 
 # ============================================================
@@ -253,9 +255,9 @@ def batch_operation():
     action = data.get("action")
     ids = data.get("ids", [])
     if not action or not ids:
-        return jsonify({"error": "请提供操作类型和工单ID列表"}), 400
+        return ApiResponse.bad_request("请提供操作类型和工单ID列表")
     if len(ids) > 100:
-        return jsonify({"error": "批量操作上限 100 条"}), 400
+        return ApiResponse.bad_request("批量操作上限 100 条")
 
     results = {"success": 0, "failed": 0}
     for raw_id in ids:
@@ -282,12 +284,12 @@ def batch_operation():
                 else:
                     results["failed"] += 1
             else:
-                return jsonify({"error": f"不支持的操作类型: {action}"}), 400
+                return ApiResponse.bad_request(f"不支持的操作类型: {action}")
         except Exception as e:
             logger.warning(f"Batch action failed for ticket {tid}: {e}")
             results["failed"] += 1
 
-    return jsonify({"message": f"完成 {results['success']} 条，失败 {results['failed']} 条", **results})
+    return ApiResponse.success(results, message=f"完成 {results['success']} 条，失败 {results['failed']} 条")
 
 
 # ============================================================
@@ -301,8 +303,8 @@ def get_ticket(ticket_id: int):
     try:
         result = svc.enrich_ticket_detail(ticket_id)
     except TicketNotFoundError:
-        return jsonify({"error": "工单不存在"}), 404
-    return jsonify(result)
+        return ApiResponse.not_found("工单不存在")
+    return ApiResponse.success(result)
 
 
 @bp_tickets.route("/<int:ticket_id>", methods=["PUT"])
@@ -312,19 +314,19 @@ def update_ticket(ticket_id: int):
     svc = inject_service("ticket_service")
     data = request.get_json()
     if not data:
-        return jsonify({"error": "请提供更新数据"}), 400
+        return ApiResponse.bad_request("请提供更新数据")
     try:
         validated = TicketUpdateSchema(**{k: v for k, v in data.items()
                                           if k in TicketUpdateSchema.model_fields})
         data.update(validated.model_dump(exclude_unset=True))
     except Exception as ve:
-        return jsonify({"error": f"数据验证失败: {str(ve)}"}), 400
+        return ApiResponse.bad_request(f"数据验证失败: {str(ve)}")
     data.pop("status", None)
     data.pop("billing_status", None)
     svc.update_ticket(ticket_id, data)
     if "tax_rate" in data or "discount_type" in data or "discount_value" in data:
         inject_service("ticket_service").recalc_ticket_total(ticket_id)
-    return jsonify({"message": "工单已更新"})
+    return ApiResponse.success(message="工单已更新")
 
 
 @bp_tickets.route("/<int:ticket_id>", methods=["DELETE"])
@@ -332,7 +334,7 @@ def delete_ticket_by_detail(ticket_id: int):
     """删除单个工单"""
     svc = inject_service("ticket_service")
     svc.delete_ticket(ticket_id)
-    return jsonify({"message": "工单已删除"})
+    return ApiResponse.success(message="工单已删除")
 
 
 # ============================================================
@@ -343,7 +345,7 @@ def delete_ticket_by_detail(ticket_id: int):
 def status_flow():
     """获取状态流转图"""
     svc = inject_service("ticket_service")
-    return jsonify({
+    return ApiResponse.success({
         "status_names": svc.STATUS_NAMES,
         "status_flow": svc.STATUS_FLOW,
     })
@@ -358,7 +360,7 @@ def ticket_stats():
     """获取工单统计"""
     svc = inject_service("ticket_service")
     stats = svc.get_status_stats()
-    return jsonify({"stats": stats or {}})
+    return ApiResponse.success({"stats": stats or {}})
 
 
 # ============================================================
@@ -373,11 +375,11 @@ def complete_ticket(ticket_id: int):
 
     try:
         result = svc.complete_ticket(ticket_id, data)
-        return jsonify(result)
+        return ApiResponse.success(result)
     except TicketNotFoundError:
-        return jsonify({"error": "工单不存在"}), 404
+        return ApiResponse.not_found("工单不存在")
     except TicketValidationError as e:
-        return jsonify({"error": str(e)}), 400
+        return ApiResponse.bad_request(str(e))
 
 
 # ============================================================
@@ -390,9 +392,9 @@ def ticket_profit(ticket_id: int):
     finance_svc = inject_service("finance_service")
     try:
         result = finance_svc.get_ticket_profit_detail(ticket_id)
-        return jsonify(result)
+        return ApiResponse.success(result)
     except Exception:
-        return jsonify({"error": "工单不存在"}), 404
+        return ApiResponse.not_found("工单不存在")
 
 
 @bp_tickets.route("/profit-list", methods=["GET"])
@@ -400,7 +402,7 @@ def ticket_profit_list():
     """获取全部工单利润列表"""
     finance_svc = inject_service("finance_service")
     result = finance_svc.get_ticket_profit_list()
-    return jsonify(result)
+    return ApiResponse.success(result)
 
 
 # ============================================================
@@ -412,7 +414,7 @@ def list_materials(ticket_id: int):
     """获取工单物料列表"""
     svc = inject_service("ticket_service")
     materials = svc.get_ticket_materials(ticket_id)
-    return jsonify({"materials": materials})
+    return ApiResponse.success({"materials": materials})
 
 
 @bp_tickets.route("/<int:ticket_id>/materials", methods=["POST"])
@@ -422,9 +424,9 @@ def add_material(ticket_id: int):
     data = request.get_json() or {}
     try:
         result = svc.add_material_with_inventory(ticket_id, data)
-        return jsonify(result)
+        return ApiResponse.success(result)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return ApiResponse.bad_request(str(e))
 
 
 @bp_tickets.route("/<int:ticket_id>/materials/<int:mat_id>", methods=["PUT"])
@@ -435,13 +437,13 @@ def update_material(ticket_id: int, mat_id: int):
     quantity = data.get("quantity")
     unit_price = data.get("unit_price")
     if quantity is None and unit_price is None:
-        return jsonify({"error": "请提供数量或单价"}), 400
+        return ApiResponse.bad_request("请提供数量或单价")
     try:
         result = svc.update_material(mat_id, ticket_id, quantity=quantity, unit_price=unit_price)
         inject_service("ticket_service").recalc_ticket_total(ticket_id)
-        return jsonify({"message": "物料已更新", **result})
+        return ApiResponse.success({"message": "物料已更新", **result})
     except Exception as e:
-        return jsonify({"error": f"物料更新失败: {str(e)}"}), 404
+        return ApiResponse.not_found(f"物料更新失败: {str(e)}")
 
 
 @bp_tickets.route("/<int:ticket_id>/materials/<int:mat_id>", methods=["DELETE"])
@@ -450,7 +452,7 @@ def delete_material(ticket_id: int, mat_id: int):
     svc = inject_service("ticket_service")
     svc.delete_material(mat_id, ticket_id)
     inject_service("ticket_service").recalc_ticket_total(ticket_id)
-    return jsonify({"message": "物料已删除"})
+    return ApiResponse.success(message="物料已删除")
 
 
 @bp_tickets.route("/<int:ticket_id>/materials/trace", methods=["GET"])
@@ -458,7 +460,7 @@ def material_trace(ticket_id: int):
     """物料追溯链"""
     svc = inject_service("ticket_service")
     result = svc.trace_material(ticket_id)
-    return jsonify(result)
+    return ApiResponse.success(result)
 
 
 # ============================================================
@@ -488,9 +490,9 @@ def list_photos(ticket_id: int):
         for p in photos:
             if p.get("filepath") and not p["filepath"].startswith("/"):
                 p["filepath"] = "/" + p["filepath"]
-        return jsonify({"photos": photos})
+        return ApiResponse.success({"photos": photos})
     except Exception as e:
-        return jsonify({"photos": [], "error": f"获取照片失败: {str(e)}"})
+        return ApiResponse.error("获取照片失败", details={"photos": [], "error": str(e)})
 
 
 @bp_tickets.route("/<int:ticket_id>/photos", methods=["POST"])
@@ -498,11 +500,11 @@ def upload_photo(ticket_id: int):
     """上传照片（自动打水印）"""
     svc = inject_service("ticket_service")
     if "photo" not in request.files:
-        return jsonify({"error": "请选择照片"}), 400
+        return ApiResponse.bad_request("请选择照片")
     photo = request.files["photo"]
     ok, err = _validate_image_upload(photo)
     if not ok:
-        return jsonify({"error": err}), 400
+        return ApiResponse.bad_request(err)
     now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     ticket_dir = str(_PROJECT_ROOT / "static" / "uploads" / "tickets" / str(ticket_id))
     os.makedirs(ticket_dir, exist_ok=True)
@@ -525,10 +527,9 @@ def upload_photo(ticket_id: int):
 
     threading.Thread(target=_process_watermark, daemon=True, name=f"watermark-{ticket_id}").start()
     logger.info(f"照片处理已启动: ticket_id={ticket_id}")
-    return jsonify({
-        "message": "照片已上传，正在后台处理",
+    return ApiResponse.success({
         "filepath": f"/static/uploads/tickets/{ticket_id}/{filename}",
-    })
+    }, message="照片已上传，正在后台处理")
 
 
 @bp_tickets.route("/<int:ticket_id>/photos", methods=["DELETE"])
@@ -546,14 +547,14 @@ def delete_photo(ticket_id: int):
             full = str(_PROJECT_ROOT / fp.lstrip("/"))
             if os.path.exists(full):
                 os.remove(full)
-            return jsonify({"message": "照片已删除"})
+            return ApiResponse.success(message="照片已删除")
     if filepath:
         full = str(_PROJECT_ROOT / filepath.lstrip("/"))
         if os.path.exists(full):
             os.remove(full)
         svc.delete_photo_by_path(filepath, ticket_id)
-        return jsonify({"message": "照片已删除"})
-    return jsonify({"error": "请提供照片ID或路径"}), 400
+        return ApiResponse.success(message="照片已删除")
+    return ApiResponse.bad_request("请提供照片ID或路径")
 
 
 # ============================================================
@@ -565,7 +566,7 @@ def list_technicians(ticket_id: int):
     """获取工单负责人列表"""
     svc = inject_service("ticket_service")
     techs = svc.get_technicians(ticket_id)
-    return jsonify({"technicians": techs})
+    return ApiResponse.success({"technicians": techs})
 
 
 @bp_tickets.route("/<int:ticket_id>/technicians", methods=["POST"])
@@ -577,12 +578,12 @@ def add_technician(ticket_id: int):
     cost_rate = float(data.get("cost_rate", 30))
     hours = float(data.get("hours", 0))
     if not name:
-        return jsonify({"error": "请提供负责人名称"}), 400
+        return ApiResponse.bad_request("请提供负责人名称")
     try:
         svc.add_technician(ticket_id, name, cost_rate, hours)
-        return jsonify({"message": f"已添加负责人: {name}"})
+        return ApiResponse.success(message=f"已添加负责人: {name}")
     except Exception as e:
-        return jsonify({"error": f"添加负责人失败: {str(e)}"}), 400
+        return ApiResponse.bad_request(f"添加负责人失败: {str(e)}")
 
 
 @bp_tickets.route("/<int:ticket_id>/technicians", methods=["DELETE"])
@@ -592,9 +593,9 @@ def remove_technician(ticket_id: int):
     data = request.get_json() or {}
     name = data.get("name", "").strip()
     if not name:
-        return jsonify({"error": "请提供负责人名称"}), 400
+        return ApiResponse.bad_request("请提供负责人名称")
     svc.remove_technician(ticket_id, name)
-    return jsonify({"message": f"已移除负责人: {name}"})
+    return ApiResponse.success(message=f"已移除负责人: {name}")
 
 
 # ============================================================
@@ -606,7 +607,7 @@ def list_service_items(ticket_id: int):
     """获取工单的服务明细行"""
     svc = inject_service("ticket_service")
     items = svc.get_service_items(ticket_id)
-    return jsonify({"service_items": items})
+    return ApiResponse.success({"service_items": items})
 
 
 @bp_tickets.route("/<int:ticket_id>/service-items", methods=["POST"])
@@ -618,14 +619,15 @@ def add_service_item(ticket_id: int):
     technician = (data.get("technician_name") or "").strip()
     fee_id = data.get("service_fee_id")
     if not technician and not fee_id:
-        return jsonify({"error": "请选择服务人员或服务项目"}), 400
+        return ApiResponse.bad_request("请选择服务人员或服务项目")
     data = svc.calc_service_item_totals(data)
     item_id = svc.add_service_item_raw(
-        ticket_id, technician, fee_id, data["hours"],
+        ticket_id, technician, fee_id, data.get("hours", 0),
         data["unit_price"], data["cost_price"],
-        data["line_total"], data["line_cost"], name=name)
+        data["line_total"], data["line_cost"], name=name,
+        days=data.get("days", 0), package_fee=data.get("package_fee", 0))
     svc.recalc_ticket_total(ticket_id)
-    return jsonify({"message": "服务明细已添加", "id": item_id})
+    return ApiResponse.success({"id": item_id}, message="服务明细已添加")
 
 
 @bp_tickets.route("/<int:ticket_id>/service-items/<int:item_id>", methods=["PUT"])
@@ -633,11 +635,12 @@ def update_service_item(ticket_id: int, item_id: int):
     """更新服务明细行"""
     data = request.get_json() or {}
     svc = inject_service("ticket_service")
-    if data.get("hours") is not None or data.get("unit_price") is not None:
+    if (data.get("hours") is not None or data.get("days") is not None or
+            data.get("package_fee") is not None or data.get("unit_price") is not None):
         data = svc.calc_service_item_totals(data)
     svc.update_service_item_raw(item_id, data)
     svc.recalc_ticket_total(ticket_id)
-    return jsonify({"message": "已更新"})
+    return ApiResponse.success(message="已更新")
 
 
 @bp_tickets.route("/<int:ticket_id>/service-items/<int:item_id>", methods=["DELETE"])
@@ -646,7 +649,7 @@ def delete_service_item(ticket_id: int, item_id: int):
     svc = inject_service("ticket_service")
     svc.delete_service_item_raw(item_id)
     svc.recalc_ticket_total(ticket_id)
-    return jsonify({"message": "已删除"})
+    return ApiResponse.success(message="已删除")
 
 
 @bp_tickets.route("/<int:ticket_id>/service-items/batch", methods=["POST"])
@@ -655,10 +658,10 @@ def batch_save_service_items(ticket_id: int):
     data = request.get_json() or {}
     items = data.get("items", [])
     if not isinstance(items, list):
-        return jsonify({"error": "items 必须为数组"}), 400
+        return ApiResponse.bad_request("items 必须为数组")
     svc = inject_service("ticket_service")
     result = svc.batch_save_service_items(ticket_id, items)
-    return jsonify(result)
+    return ApiResponse.success(result)
 
 
 def _get_ticket_due_amount(ticket: dict) -> float:
@@ -676,12 +679,12 @@ def link_equipment(ticket_id: int):
     data = request.get_json()
     equip_id = (data or {}).get("equipment_id")
     if not equip_id:
-        return jsonify({"error": "请提供设备ID"}), 400
+        return ApiResponse.bad_request("请提供设备ID")
     try:
         equip = svc.link_equipment(ticket_id, int(equip_id))
-        return jsonify({"message": f"已关联设备: {equip['name']}"})
+        return ApiResponse.success(message=f"已关联设备: {equip['name']}")
     except Exception as e:
-        return jsonify({"error": f"关联设备失败: {str(e)}"}), 400
+        return ApiResponse.bad_request(f"关联设备失败: {str(e)}")
 
 
 # ============================================================
@@ -697,9 +700,9 @@ def set_discount(ticket_id: int):
     try:
         svc = inject_service("ticket_service")
         result = svc.set_discount(ticket_id, discount_type, discount_value)
-        return jsonify(result)
+        return ApiResponse.success(result)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return ApiResponse.bad_request(str(e))
 
 
 @bp_tickets.route("/<int:ticket_id>/equipment/<int:equip_id>", methods=["DELETE"])
@@ -707,7 +710,7 @@ def unlink_equipment(ticket_id: int, equip_id: int):
     """取消关联设备"""
     svc = inject_service("ticket_service")
     svc.unlink_equipment(ticket_id, equip_id)
-    return jsonify({"message": "已取消关联"})
+    return ApiResponse.success(message="已取消关联")
 
 
 # ============================================================
@@ -720,10 +723,10 @@ def timer_start(ticket_id: int):
     svc = inject_service("ticket_service")
     ticket = svc.get_ticket(ticket_id)
     if not ticket:
-        return jsonify({"error": "工单不存在"}), 404
+        return ApiResponse.not_found("工单不存在")
     now = datetime.now()
     _set_timer_start(ticket_id, now)
-    return jsonify({"message": "计时已开始", "started_at": now.isoformat()})
+    return ApiResponse.success({"started_at": now.isoformat()}, message="计时已开始")
 
 
 @bp_tickets.route("/<int:ticket_id>/timer/stop", methods=["POST"])
@@ -731,15 +734,15 @@ def timer_stop(ticket_id: int):
     """停止工时计时，自动累加实际工时"""
     start_time = _get_timer_start(ticket_id)
     if not start_time:
-        return jsonify({"error": "没有正在运行的计时器"}), 400
+        return ApiResponse.bad_request("没有正在运行的计时器")
 
     _clear_timer(ticket_id)
     try:
         svc = inject_service("ticket_service")
         result = svc.stop_timer(ticket_id, start_time)
-        return jsonify(result)
+        return ApiResponse.success(result)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 404
+        return ApiResponse.not_found(str(e))
 
 
 @bp_tickets.route("/<int:ticket_id>/timer/status", methods=["GET"])
@@ -747,9 +750,9 @@ def timer_status(ticket_id: int):
     """查询计时器状态"""
     start_time = _get_timer_start(ticket_id)
     if not start_time:
-        return jsonify({"running": False, "message": "计时器未启动"})
+        return ApiResponse.success({"running": False}, message="计时器未启动")
     running_seconds = round((datetime.now() - start_time).total_seconds())
-    return jsonify({
+    return ApiResponse.success({
         "running": True,
         "started_at": start_time.isoformat(),
         "elapsed_seconds": running_seconds,
@@ -765,7 +768,7 @@ def timer_status(ticket_id: int):
 def ticket_history(ticket_id: int):
     """获取工单操作日志"""
     history = inject_service("ticket_service").get_history(ticket_id)
-    return jsonify({"history": history})
+    return ApiResponse.success({"history": history})
 
 
 # ============================================================
@@ -779,11 +782,11 @@ def parse_ticket():
     data = request.get_json() or {}
     text = (data.get("text") or "").strip()
     if not text:
-        return jsonify({"error": "请提供自然语言描述"}), 400
+        return ApiResponse.bad_request("请提供自然语言描述")
 
     parsed = svc.parse_natural_language(text)
     if "error" in parsed:
-        return jsonify(parsed), 400
+        return ApiResponse.bad_request(parsed["error"])
 
     client = parsed.get("client", "")
     if client:
@@ -803,7 +806,7 @@ def parse_ticket():
         else:
             parsed["_client_matched"] = False
 
-    return jsonify({
+    return ApiResponse.success({
         "parsed": parsed,
         "summary": f"解析结果：客户「{parsed.get('client','?')}」，内容「{parsed.get('content','')}」"
                    f"，优先级「{parsed.get('priority','M')}」",
@@ -822,8 +825,8 @@ def confirm_delete_preview(ticket_id: int):
     try:
         result = svc.confirm_delete_preview(ticket_id)
     except TicketNotFoundError:
-        return jsonify({"error": "工单不存在"}), 404
-    return jsonify(result)
+        return ApiResponse.not_found("工单不存在")
+    return ApiResponse.success(result)
 
 
 @bp_tickets.route("/<int:ticket_id>/confirm-delete", methods=["POST"])
@@ -836,8 +839,8 @@ def confirm_delete_execute(ticket_id: int):
     try:
         result = svc.confirm_delete_execute(ticket_id, confirm_id)
     except TicketValidationError as e:
-        return jsonify({"error": str(e)}), 400
-    return jsonify(result)
+        return ApiResponse.bad_request(str(e))
+    return ApiResponse.success(result)
 
 
 # ============================================================
@@ -852,9 +855,9 @@ def batch_preview():
     action = data.get("action", "")
     ids = data.get("ids", [])
     if not action or not ids:
-        return jsonify({"error": "请提供操作类型和工单ID列表"}), 400
+        return ApiResponse.bad_request("请提供操作类型和工单ID列表")
     if len(ids) > 100:
-        return jsonify({"error": "批量操作上限 100 条"}), 400
+        return ApiResponse.bad_request("批量操作上限 100 条")
 
     tickets_info = []
     for raw_id in ids:
@@ -872,7 +875,7 @@ def batch_preview():
             pass
 
     if not tickets_info:
-        return jsonify({"error": "未找到有效工单"}), 404
+        return ApiResponse.not_found("未找到有效工单")
 
     total_amount = sum(t["total"] for t in tickets_info)
 
@@ -883,7 +886,7 @@ def batch_preview():
         "expires_at": datetime.now().timestamp() + 300,
     })
 
-    return jsonify({
+    return ApiResponse.success({
         "confirm_id": confirm_id,
         "action": action,
         "tickets": tickets_info,
@@ -905,10 +908,10 @@ def batch_confirm():
 
     confirmation = svc.pop_confirmation(confirm_id)
     if not confirm_id or not confirmation:
-        return jsonify({"error": "确认ID无效或已过期，请重新预览"}), 400
+        return ApiResponse.bad_request("确认ID无效或已过期，请重新预览")
 
     if confirmation["expires_at"] < datetime.now().timestamp():
-        return jsonify({"error": "确认已过期（5分钟），请重新预览"}), 400
+        return ApiResponse.bad_request("确认已过期（5分钟），请重新预览")
 
     action = confirmation["action"].replace("batch_", "")
     ids = confirmation["ids"]
@@ -917,7 +920,7 @@ def batch_confirm():
     result = svc.batch_execute_action(ids, action, target_status)
 
     svc.cleanup_expired_confirmations()
-    return jsonify(result)
+    return ApiResponse.success(result)
 
 
 # ============================================================
@@ -936,10 +939,10 @@ def batch_by_filter():
         svc = inject_service("ticket_service")
         result = svc.batch_by_filter(action, filters, target_status)
         if "error" in result and "matched_count" in result:
-            return jsonify(result), 404
-        return jsonify(result)
+            return ApiResponse.error(result["error"], code=404, details=result)
+        return ApiResponse.success(result)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return ApiResponse.bad_request(str(e))
 
 
 # ============================================================
@@ -952,9 +955,9 @@ def ticket_delta(ticket_id: int):
     try:
         svc = inject_service("ticket_service")
         result = svc.get_ticket_delta(ticket_id)
-        return jsonify(result)
+        return ApiResponse.success(result)
     except ValueError:
-        return jsonify({"error": "工单不存在"}), 404
+        return ApiResponse.not_found("工单不存在")
 
 
 @bp_tickets.route("/<int:ticket_id>/timeline", methods=["GET"])

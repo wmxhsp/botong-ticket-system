@@ -1,4 +1,5 @@
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 
 /**
  * Auto-save composable for form drafts
@@ -20,7 +21,6 @@ export function useAutoSave(key, defaultValue = {}, debounceMs = 1000) {
   const formData = ref({ ...defaultValue })
   const isDirty = ref(false)
   const lastSaved = ref(null)
-  let saveTimer = null
 
   // Restore from localStorage
   function restore() {
@@ -44,7 +44,7 @@ export function useAutoSave(key, defaultValue = {}, debounceMs = 1000) {
   }
 
   // Save to localStorage
-  function save() {
+  const save = useDebounceFn(() => {
     try {
       const data = { ...formData.value, _savedAt: Date.now() }
       localStorage.setItem(storageKey, JSON.stringify(data))
@@ -53,7 +53,7 @@ export function useAutoSave(key, defaultValue = {}, debounceMs = 1000) {
     } catch {
       // Storage full or unavailable
     }
-  }
+  }, debounceMs)
 
   // Clear draft
   function clearDraft() {
@@ -67,16 +67,11 @@ export function useAutoSave(key, defaultValue = {}, debounceMs = 1000) {
     lastSaved.value = null
   }
 
-  // Auto-save with debounce
+  // Auto-save with VueUse debounce
   watch(formData, () => {
     isDirty.value = true
-    clearTimeout(saveTimer)
-    saveTimer = setTimeout(save, debounceMs)
+    save()
   }, { deep: true })
-
-  onUnmounted(() => {
-    clearTimeout(saveTimer)
-  })
 
   // Try to restore on init
   restore()

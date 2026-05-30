@@ -223,3 +223,148 @@ export interface Todo {
   due_date?: string
   priority?: string
 }
+
+export interface PurchaseOrder {
+  id: number | string
+  order_no?: string
+  supplier?: string
+  supplier_id?: number | string
+  status?: string
+  total_amount?: number
+  order_date?: string
+  expected_date?: string
+  notes?: string
+  items?: PurchaseItem[]
+}
+
+export interface PurchaseItem {
+  id?: number | string
+  order_id?: number | string
+  product_id?: number | string
+  product_name?: string
+  quantity?: number
+  unit_price?: number
+  total_price?: number
+}
+
+export interface InventoryItem {
+  id: number | string
+  goods_id?: number | string
+  goods_name?: string
+  warehouse_id?: number | string
+  warehouse_name?: string
+  quantity?: number
+  min_stock?: number
+  max_stock?: number
+  last_check?: string
+}
+
+export interface Expense {
+  id: number | string
+  category?: string
+  amount?: number
+  description?: string
+  vendor?: string
+  paid_at?: string
+  paid_by?: string
+  receipt_url?: string
+}
+
+export interface Notification {
+  id: number | string
+  title?: string
+  message?: string
+  type?: string
+  is_read?: boolean
+  created_at?: string
+  read_at?: string
+}
+
+export interface AutomationRule {
+  id: number | string
+  name?: string
+  trigger_type?: string
+  action_type?: string
+  is_enabled?: boolean
+  conditions?: Record<string, any>
+  actions?: Record<string, any>
+  created_at?: string
+}
+
+export interface ServiceAgreement {
+  id: number | string
+  client_id?: number | string
+  client_name?: string
+  start_date?: string
+  end_date?: string
+  service_type?: string
+  price?: number
+  status?: string
+}
+
+export interface Technician {
+  id: number | string
+  name?: string
+  phone?: string
+  email?: string
+  skill_level?: string
+  billing_type?: 'hourly' | 'daily' | 'package'
+  cost_rate?: number
+  daily_cost_rate?: number
+  package_cost?: number
+  status?: string
+}
+
+export interface TicketServiceItem {
+  id?: number | string
+  ticket_id?: number | string
+  technician_name?: string
+  service_name?: string
+  billing_type?: 'hourly' | 'daily' | 'package'
+  hours?: number
+  days?: number
+  package_fee?: number
+  unit_price?: number
+  cost_price?: number
+  line_total?: number
+  line_cost?: number
+}
+
+export type TicketStatus = 
+  | 'open' 
+  | 'in-progress' 
+  | 'pending-parts' 
+  | 'pending-client' 
+  | 'pending-payment' 
+  | 'completed' 
+  | 'closed' 
+  | 'cancelled' 
+  | 'archived'
+
+export type Priority = 'H' | 'L' | ''
+
+export type BillingType = 'hourly' | 'daily' | 'package'
+
+export type PaymentMethod = '微信' | '支付宝' | '现金' | '银行转账'
+
+export interface SelectOption {
+  value: string | number
+  label: string
+  disabled?: boolean
+}
+
+export interface TableColumn {
+  key: string
+  label: string
+  sortable?: boolean
+  width?: string
+  align?: 'left' | 'center' | 'right'
+}
+
+export interface FilterOption {
+  key: string
+  label: string
+  type: 'text' | 'select' | 'date' | 'daterange'
+  options?: SelectOption[]
+  placeholder?: string
+}

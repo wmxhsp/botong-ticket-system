@@ -8,13 +8,16 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!user.value)
 
+  function _hasAuthCookie() {
+    return document.cookie.includes('bt_auth=')
+  }
+
   async function checkAuth() {
     if (checked.value) return
     checked.value = true
-    try {
-      await client.get('/health')
+    if (_hasAuthCookie()) {
       user.value = { authenticated: true }
-    } catch {
+    } else {
       user.value = null
     }
   }
@@ -22,15 +25,21 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(password) {
     await fetchCsrfToken()
     const result = await client.post('/login', { pwd: password })
-    user.value = { authenticated: true }
-    checked.value = true
+    if (result.ok) {
+      user.value = { authenticated: true }
+      checked.value = true
+    }
     return result
   }
 
   async function logout() {
-    await client.get('/logout')
-    user.value = null
-    checked.value = false
+    try {
+      await client.get('/logout')
+    } finally {
+      user.value = null
+      checked.value = false
+      document.cookie = 'bt_auth=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+    }
   }
 
   return { user, checked, isAuthenticated, checkAuth, login, logout }

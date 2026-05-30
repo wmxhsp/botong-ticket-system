@@ -34,14 +34,18 @@ if __name__ == "__main__":
     print("⏰ 提醒调度: RQ 任务队列")
     print("🔒 认证: HMAC 签名 + Cookie 自动续期")
     port = int(os.environ.get("BOTO_PORT", app.config.get("BOTO_PORT", 5053)))
+    host = os.environ.get("BOTO_HOST", "0.0.0.0")
     print(f"🌐 本地访问: http://localhost:{port}")
+    tailscale_host = os.environ.get("BOTO_TAILSCALE_HOST")
+    if tailscale_host:
+        print(f"🔗 Tailscale 访问: http://{tailscale_host}:{port}")
     print(f"🔧 调试模式: {'开' if debug_enabled else '关'}")
     print(f"📖 API 文档: http://localhost:{port}/docs")
     print(f"🔍 健康检查: http://localhost:{port}/api/v1/health")
     print("=" * 50)
 
     try:
-        app.run(debug=debug_enabled, host="0.0.0.0", port=port, use_reloader=debug_enabled)
+        app.run(debug=debug_enabled, host=host, port=port, use_reloader=debug_enabled)
     except OSError as e:
         print(f"❌ 端口 {port} 已被占用！请先关闭原有进程。")
         print(f"   错误: {e}")

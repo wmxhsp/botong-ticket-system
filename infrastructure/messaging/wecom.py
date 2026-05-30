@@ -414,11 +414,10 @@ class WeComBotClient:
         return self.send_markdown(msg)
 
     def push_status_change(self, event) -> Dict:
-        data = event.data if hasattr(event, 'data') else event
-        ticket_no = data.get("ticket_no", "")
-        client = data.get("client", "")
-        old_status = data.get("old_status", "")
-        new_status = data.get("new_status", "")
+        ticket_no = getattr(event, "ticket_no", "")
+        client = getattr(event, "client", "")
+        old_status = getattr(event, "old_status", "")
+        new_status = getattr(event, "new_status", "")
         msg = self.build_markdown(
             "🔄 工单状态变更",
             f"工单 **{ticket_no}** 状态从 **{old_status}** 变更为 **{new_status}**",
@@ -428,10 +427,9 @@ class WeComBotClient:
         return self.send_markdown(msg)
 
     def push_payment_notice(self, event) -> Dict:
-        data = event.data if hasattr(event, 'data') else event
-        ticket_no = data.get("ticket_no", "")
-        client = data.get("client", "")
-        amount = data.get("amount", 0)
+        ticket_no = getattr(event, "ticket_no", "")
+        client = getattr(event, "client", "")
+        amount = getattr(event, "amount", 0)
         msg = self.build_markdown(
             "💰 收款通知",
             f"工单 **{ticket_no}** 已确认收款",

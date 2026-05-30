@@ -19,6 +19,9 @@
             <div>
               <span class="font-medium">{{ item.technician_name || '-' }}</span>
               <span class="text-muted small ms-2">{{ item.name || '-' }}</span>
+              <span v-if="item.billing_type && item.billing_type !== 'hourly'" class="badge bg-secondary ms-1">
+                {{ billingTypeLabel(item.billing_type) }}
+              </span>
             </div>
           </div>
           <button class="btn btn-sm btn-outline-danger" @click="$emit('delete-service-item', item.id)">
@@ -26,22 +29,55 @@
           </button>
         </div>
         <div class="row g-2 text-center">
-          <div class="col-3">
-            <div class="text-xs text-muted">工时</div>
-            <div class="font-bold">{{ item.hours || 0 }}h</div>
-          </div>
-          <div class="col-3">
-            <div class="text-xs text-muted">成本时薪</div>
-            <div class="font-bold text-warning">¥{{ item.cost_price || 0 }}/h</div>
-          </div>
-          <div class="col-3">
-            <div class="text-xs text-muted">计费时薪</div>
-            <div class="font-bold text-primary">¥{{ item.unit_price || 0 }}/h</div>
-          </div>
+          <!-- 时薪模式 -->
+          <template v-if="!item.billing_type || item.billing_type === 'hourly'">
+            <div class="col-3">
+              <div class="text-xs text-muted">工时</div>
+              <div class="font-bold">{{ item.hours || 0 }}h</div>
+            </div>
+            <div class="col-3">
+              <div class="text-xs text-muted">成本时薪</div>
+              <div class="font-bold text-warning">¥{{ item.cost_price || 0 }}/h</div>
+            </div>
+            <div class="col-3">
+              <div class="text-xs text-muted">计费时薪</div>
+              <div class="font-bold text-primary">¥{{ item.unit_price || 0 }}/h</div>
+            </div>
+          </template>
+          <!-- 天薪模式 -->
+          <template v-else-if="item.billing_type === 'daily'">
+            <div class="col-3">
+              <div class="text-xs text-muted">天数</div>
+              <div class="font-bold">{{ item.days || 0 }}天</div>
+            </div>
+            <div class="col-3">
+              <div class="text-xs text-muted">成本日薪</div>
+              <div class="font-bold text-warning">¥{{ item.cost_price || 0 }}/天</div>
+            </div>
+            <div class="col-3">
+              <div class="text-xs text-muted">计费日薪</div>
+              <div class="font-bold text-primary">¥{{ item.unit_price || 0 }}/天</div>
+            </div>
+          </template>
+          <!-- 包工模式 -->
+          <template v-else-if="item.billing_type === 'package'">
+            <div class="col-3">
+              <div class="text-xs text-muted">类型</div>
+              <div class="font-bold">包工</div>
+            </div>
+            <div class="col-3">
+              <div class="text-xs text-muted">成本</div>
+              <div class="font-bold text-warning">¥{{ item.cost_price || 0 }}</div>
+            </div>
+            <div class="col-3">
+              <div class="text-xs text-muted">包工费</div>
+              <div class="font-bold text-primary">¥{{ item.package_fee || item.unit_price || 0 }}</div>
+            </div>
+          </template>
           <div class="col-3">
             <div class="text-xs text-muted">毛利</div>
             <div class="font-bold" :class="(item.line_profit || 0) >= 0 ? 'text-success' : 'text-danger'">
-              ¥{{ formatMoney(item.line_profit || 0) }}
+              ¥{{ formatMoney(item.line_profit || (item.line_total - item.line_cost) || 0) }}
             </div>
           </div>
         </div>
@@ -61,6 +97,11 @@ defineProps({
 defineEmits(['add-service-item', 'delete-service-item'])
 
 function formatMoney(val) { return parseFloat(val || 0).toFixed(2) }
+
+function billingTypeLabel(bt) {
+  const map = { hourly: '时薪', daily: '天薪', package: '包工' }
+  return map[bt] || bt
+}
 </script>
 
 <style scoped>

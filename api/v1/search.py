@@ -1,6 +1,7 @@
 import logging
 from flask import Blueprint, request, jsonify
 from infrastructure.di.service_injection import inject_service
+from api.v1.responses import ApiResponse
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ def global_search():
     search_svc = inject_service("search_service")
     q = (request.args.get("q") or "").strip()
     result = search_svc.global_search(q)
-    return jsonify(result)
+    return ApiResponse.success(result)
 
 
 def register_blueprint(app):

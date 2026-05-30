@@ -596,12 +596,12 @@ class SqliteTicketRepository:
     def get_service_items(self, ticket_id: int):
         """获取工单的所有服务明细行"""
         return db_query(
-            "SELECT id, ticket_id, name, technician_name, service_fee_id, hours, unit_price, cost_price, line_total, line_cost FROM ticket_service_items WHERE ticket_id = ? ORDER BY id",
+            "SELECT id, ticket_id, name, technician_name, service_fee_id, hours, days, package_fee, unit_price, cost_price, line_total, line_cost FROM ticket_service_items WHERE ticket_id = ? ORDER BY id",
             (ticket_id,))
 
     def find_service_item(self, item_id: int, ticket_id: int = None) -> Optional[Dict[str, Any]]:
         """查询单个服务明细行"""
-        _cols = "id, ticket_id, name, technician_name, service_fee_id, hours, unit_price, cost_price, line_total, line_cost"
+        _cols = "id, ticket_id, name, technician_name, service_fee_id, hours, days, package_fee, unit_price, cost_price, line_total, line_cost"
         if ticket_id:
             return db_query_one(
                 f"SELECT {_cols} FROM ticket_service_items WHERE id = ? AND ticket_id = ?",
@@ -613,15 +613,16 @@ class SqliteTicketRepository:
                          service_fee_id: int, hours: float = 0,
                          unit_price: float = 0, cost_price: float = 0,
                          line_total: float = 0, line_cost: float = 0,
-                         name: str = "") -> int:
+                         name: str = "", days: float = 0,
+                         package_fee: float = 0) -> int:
         """添加服务明细行"""
         with self._ensure_conn() as conn:
             cursor = conn.execute(
                 """INSERT INTO ticket_service_items
-                   (ticket_id, name, technician_name, service_fee_id, hours,
+                   (ticket_id, name, technician_name, service_fee_id, hours, days, package_fee,
                     unit_price, cost_price, line_total, line_cost)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (ticket_id, name, technician_name, service_fee_id, hours,
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (ticket_id, name, technician_name, service_fee_id, hours, days, package_fee,
                  unit_price, cost_price, line_total, line_cost))
             if not self._conn:
                 conn.commit()
@@ -629,7 +630,7 @@ class SqliteTicketRepository:
 
     def update_service_item(self, item_id: int, data: dict) -> bool:
         """更新服务明细行"""
-        allowed = {"name", "technician_name", "service_fee_id", "hours",
+        allowed = {"name", "technician_name", "service_fee_id", "hours", "days", "package_fee",
                     "unit_price", "cost_price", "line_total", "line_cost"}
         updates, params = [], []
         for k, v in data.items():

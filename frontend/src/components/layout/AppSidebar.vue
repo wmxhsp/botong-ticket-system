@@ -1,33 +1,57 @@
 <template>
-  <aside class="bt-sidebar" :class="{ collapsed: collapsed, open: mobileOpen }">
-    <div class="brand" @click="toggleCollapse">
+  <aside class="bt-sidebar-rail">
+    <div class="rail-brand">
       <i class="bi bi-cpu"></i>
-      <span class="brand-name">博通</span>
     </div>
 
-    <nav class="nav flex-column">
-      <template v-for="group in navGroups" :key="group.title">
-        <div class="nav-group-title">{{ group.title }}</div>
+    <nav class="rail-nav">
+      <div class="rail-section">
         <router-link
-          v-for="item in group.items"
+          v-for="item in primaryNav"
           :key="item.name"
-          class="nav-link"
-          :to="{name: item.name}"
+          class="rail-item"
+          :to="{ name: item.name }"
           :class="{ active: isActive(item) }"
-          :title="item.label"
           @click="onNavClick"
         >
+          <span class="rail-indicator"></span>
           <i :class="['bi', item.icon]"></i>
-          <span>{{ item.label }}</span>
+          <span class="rail-tooltip">{{ item.label }}</span>
         </router-link>
-      </template>
+      </div>
+
+      <div class="rail-divider"></div>
+
+      <div class="rail-section">
+        <router-link
+          v-for="item in secondaryNav"
+          :key="item.name"
+          class="rail-item"
+          :to="{ name: item.name }"
+          :class="{ active: isActive(item) }"
+          @click="onNavClick"
+        >
+          <span class="rail-indicator"></span>
+          <i :class="['bi', item.icon]"></i>
+          <span class="rail-tooltip">{{ item.label }}</span>
+        </router-link>
+      </div>
     </nav>
 
-    <div class="sidebar-footer">
-      <div class="user-info">
-        <div class="avatar"><i class="bi bi-user"></i></div>
-        <span class="username">管理员</span>
-      </div>
+    <div class="rail-bottom">
+      <router-link
+        v-for="item in bottomNav"
+        :key="item.name"
+        class="rail-item"
+        :to="{ name: item.name }"
+        :class="{ active: isActive(item) }"
+        @click="onNavClick"
+      >
+        <span class="rail-indicator"></span>
+        <i :class="['bi', item.icon]"></i>
+        <span v-if="item.badge" class="rail-badge">{{ item.badge }}</span>
+        <span class="rail-tooltip">{{ item.label }}</span>
+      </router-link>
     </div>
   </aside>
 
@@ -41,67 +65,31 @@ import { useAppStore } from '@/stores/app'
 
 const route = useRoute()
 const app = useAppStore()
-
-const collapsed = computed(() => app.sidebarCollapsed)
 const mobileOpen = computed(() => app.sidebarMobileOpen)
 
-const navGroups = [
-  {
-    title: '工作台',
-    items: [
-      { name: 'Dashboard', label: '仪表盘', icon: 'speedometer2' },
-      { name: 'Notifications', label: '通知中心', icon: 'bell' },
-      { name: 'Todos', label: '待办事项', icon: 'check2-square' },
-    ],
-  },
-  {
-    title: '核心业务',
-    items: [
-      { name: 'Tickets', label: '工单管理', icon: 'ticket-perforated', children: ['TicketDetail', 'TicketCreate'] },
-      { name: 'Clients', label: '客户管理', icon: 'people', children: ['ClientDetail'] },
-      { name: 'Equipment', label: '设备管理', icon: 'pc-display', children: ['EquipmentDetail'] },
-    ],
-  },
-  {
-    title: '销售管理',
-    items: [
-      { name: 'Inventory', label: '库存管理', icon: 'box-seam' },
-      { name: 'Purchase', label: '采购管理', icon: 'cart-check' },
-      { name: 'Warehouses', label: '仓库管理', icon: 'shop' },
-      { name: 'Suppliers', label: '供应商管理', icon: 'truck' },
-    ],
-  },
-  {
-    title: '服务规则',
-    items: [
-      { name: 'ServiceFees', label: '服务规则', icon: 'currency-yen' },
-      { name: 'Staff', label: '工程师管理', icon: 'people-fill' },
-    ],
-  },
-  {
-    title: '财务',
-    items: [
-      { name: 'Finance', label: '财务管理', icon: 'cash-coin' },
-      { name: 'Expenses', label: '支出管理', icon: 'wallet2' },
-      { name: 'Stats', label: '统计分析', icon: 'graph-up' },
-    ],
-  },
-  {
-    title: '系统',
-    items: [
-      { name: 'Settings', label: '系统设置', icon: 'sliders' },
-    ],
-  },
+const primaryNav = [
+  { name: 'Dashboard', icon: 'bi-lightning-charge', label: '仪表盘' },
+  { name: 'TicketList', icon: 'bi-clipboard-check', label: '工单' },
+  { name: 'ClientList', icon: 'bi-people', label: '客户' },
+  { name: 'Finance', icon: 'bi-cash-coin', label: '财务' },
+  { name: 'Inventory', icon: 'bi-box-seam', label: '库存' },
+]
+
+const secondaryNav = [
+  { name: 'EquipmentList', icon: 'bi-pc-display', label: '设备' },
+  { name: 'Purchase', icon: 'bi-cart3', label: '采购' },
+  { name: 'Staff', icon: 'bi-wrench-adjustable', label: '员工' },
+  { name: 'Stats', icon: 'bi-bar-chart-line', label: '统计' },
+]
+
+const bottomNav = [
+  { name: 'Todos', icon: 'bi-check2-square', label: '待办' },
+  { name: 'Notifications', icon: 'bi-bell', label: '通知', badge: true },
+  { name: 'Settings', icon: 'bi-gear', label: '设置' },
 ]
 
 function isActive(item) {
-  if (route.name === item.name) return true
-  if (item.children && item.children.includes(route.name)) return true
-  return false
-}
-
-function toggleCollapse() {
-  app.sidebarCollapsed = !app.sidebarCollapsed
+  return route.name === item.name
 }
 
 function onNavClick() {
@@ -116,8 +104,8 @@ function closeMobile() {
 </script>
 
 <style scoped>
-.bt-sidebar {
-  width: 200px;
+.bt-sidebar-rail {
+  width: 48px;
   min-height: 100vh;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   display: flex;
@@ -126,179 +114,141 @@ function closeMobile() {
   left: 0;
   top: 0;
   z-index: 100;
-  transition: width 0.3s ease;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+  align-items: center;
+  padding: 0;
 }
 
-.bt-sidebar.collapsed {
-  width: 56px;
-}
-
-.bt-sidebar .brand {
-  padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  cursor: pointer;
+.rail-brand {
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  transition: all 0.3s ease;
+  justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  cursor: default;
 }
 
-.bt-sidebar .brand:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.bt-sidebar .brand i {
-  font-size: 24px;
+.rail-brand i {
+  font-size: 20px;
   color: #3b82f6;
-  flex-shrink: 0;
 }
 
-.bt-sidebar .brand-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: white;
-  flex-shrink: 0;
-}
-
-.bt-sidebar nav {
+.rail-nav {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 8px 0;
   overflow-y: auto;
+  min-height: 0;
+  width: 100%;
 }
 
-.bt-sidebar nav::-webkit-scrollbar {
-  width: 4px;
+.rail-nav::-webkit-scrollbar {
+  width: 0;
 }
 
-.bt-sidebar nav::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.bt-sidebar nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-}
-
-.bt-sidebar .nav-group-title {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: #64748b;
-  padding: 12px 16px 4px;
-  font-weight: 700;
-  transition: opacity 0.3s ease;
-}
-
-.bt-sidebar .nav-link {
+.rail-section {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  color: #94a3b8;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  border-radius: 0 8px 8px 0;
-  margin: 2px 0;
+  width: 100%;
+}
+
+.rail-divider {
+  width: 24px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+.rail-item {
   position: relative;
-}
-
-.bt-sidebar .nav-link:hover {
-  background: rgba(59, 130, 246, 0.1);
-  color: #e2e8f0;
-  padding-left: 20px;
-}
-
-.bt-sidebar .nav-link.active {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.25) 0%, transparent 100%);
-  color: #3b82f6;
-  border-left: 3px solid #3b82f6;
-}
-
-.bt-sidebar .nav-link i {
-  width: 18px;
-  font-size: 16px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.bt-sidebar .sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.bt-sidebar .user-info {
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.bt-sidebar .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
-}
-
-.bt-sidebar .avatar i {
-  font-size: 14px;
-}
-
-.bt-sidebar .username {
-  font-size: 13px;
-  color: #94a3b8;
-  font-weight: 500;
-}
-
-.bt-sidebar.collapsed .brand-name,
-.bt-sidebar.collapsed .nav-group-title,
-.bt-sidebar.collapsed .nav-link span,
-.bt-sidebar.collapsed .username {
-  display: none;
-}
-
-.bt-sidebar.collapsed .brand {
-  justify-content: center;
-}
-
-.bt-sidebar.collapsed .nav-link {
   justify-content: center;
   border-radius: 8px;
-  margin: 2px 8px;
-  padding: 10px;
+  margin: 2px 0;
+  color: #64748b;
+  text-decoration: none;
+  transition: all 0.15s ease;
 }
 
-.bt-sidebar.collapsed .nav-link.active {
-  border-left: none;
-  background: rgba(59, 130, 246, 0.2);
+.rail-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
 }
 
-.bt-sidebar.collapsed .sidebar-footer {
-  padding: 12px 8px;
-  text-align: center;
+.rail-item.active {
+  color: #60a5fa;
 }
 
-.bt-sidebar.collapsed .user-info {
-  justify-content: center;
-}
-
-.bt-sidebar.collapsed .nav-link:hover::after {
-  content: attr(title);
+.rail-item.active .rail-indicator {
   position: absolute;
-  left: 60px;
-  background: #1e293b;
-  padding: 8px 12px;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 0 2px 2px 0;
+}
+
+.rail-item i {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.rail-tooltip {
+  position: absolute;
+  left: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  color: #1e293b;
+  padding: 4px 10px;
   border-radius: 6px;
   font-size: 12px;
-  color: white;
+  font-weight: 500;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
   z-index: 1000;
+}
+
+[data-theme="dark"] .rail-tooltip {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.rail-item:hover .rail-tooltip {
+  opacity: 1;
+}
+
+.rail-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .bt-sidebar-overlay {
@@ -309,23 +259,8 @@ function closeMobile() {
 }
 
 @media (max-width: 992px) {
-  .bt-sidebar {
-    width: 260px;
-    transform: translateX(-100%);
-    z-index: 1000;
-  }
-
-  .bt-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .bt-sidebar.collapsed {
-    width: 260px;
-    transform: translateX(-100%);
-  }
-
-  .bt-sidebar.collapsed.open {
-    transform: translateX(0);
+  .bt-sidebar-rail {
+    display: none;
   }
 }
 </style>

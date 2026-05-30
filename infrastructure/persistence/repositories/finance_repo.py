@@ -852,7 +852,7 @@ class SqliteFinanceRepository:
             return []
         placeholders = ",".join("?" * len(ticket_ids))
         return db_query(f"""
-            SELECT t.id, t.ticket_no, t.client, t.status,
+            SELECT t.id as ticket_id, t.ticket_no, t.client, t.status,
                    COALESCE(t.total, 0) as total,
                    COALESCE(i.total_income, 0) as total_income,
                    COALESCE(e.total_expense, 0) as total_expense

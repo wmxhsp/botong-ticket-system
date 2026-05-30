@@ -2,12 +2,27 @@
   <div class="page-dashboard">
     <div class="bt-page-title d-flex justify-content-between align-items-start flex-wrap gap-2">
       <div><h2><i class="bi bi-speedometer2 me-2"></i>仪表盘</h2><p>{{ currentDate }} · 系统正常运行</p></div>
-      <router-link to="/tickets/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> 新建工单</router-link>
+      <router-link to="/tickets/new" class="btn btn-primary d-none d-md-inline-flex"><i class="bi bi-plus-lg"></i> 新建工单</router-link>
+    </div>
+
+    <!-- 移动端快捷操作按钮 -->
+    <div class="d-md-none mobile-quick-actions mb-2">
+      <div class="d-flex gap-2">
+        <router-link to="/tickets/new" class="btn btn-primary btn-sm flex-fill d-flex align-items-center justify-content-center gap-1">
+          <i class="bi bi-plus-lg"></i><span>新建工单</span>
+        </router-link>
+        <router-link to="/tickets?status=pending-payment" class="btn btn-warning btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 text-dark">
+          <i class="bi bi-cash-coin"></i><span>去结算</span>
+        </router-link>
+        <router-link to="/tickets" class="btn btn-info btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 text-white">
+          <i class="bi bi-camera"></i><span>拍照</span>
+        </router-link>
+      </div>
     </div>
 
     <!-- Stats Cards: 手机一行3个，平板一行4个，桌面一行6个 -->
     <LoadingSkeleton v-if="!dashboard.openTickets && dashboard.openTickets !== 0" type="cards" :count="6" />
-    <div v-else class="row g-2 mb-2">
+    <div v-else class="row g-2 mb-2 stats-cards">
       <div class="col-4 col-sm-3 col-md-2"><div class="card p-2 text-center"><div class="stat-value">{{ dashboard.openTickets || 0 }}</div><div class="stat-label">待处理</div></div></div>
       <div class="col-4 col-sm-3 col-md-2"><div class="card p-2 text-center"><div class="stat-value text-primary">{{ dashboard.todayTickets || 0 }}</div><div class="stat-label">今日新增</div></div></div>
       <div class="col-4 col-sm-3 col-md-2"><div class="card p-2 text-center"><div class="stat-value text-warning">{{ dashboard.pendingPayment || 0 }}</div><div class="stat-label">待结算</div></div></div>
@@ -64,12 +79,15 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { dashboardApi } from '@/api/dashboard'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import LoadingSkeleton from '@/components/common/LoadingSkeleton.vue'
 import { formatMoney } from '@/utils/format'
 import '@/plugins/chart'
 import { Chart } from 'chart.js'
+
+const router = useRouter()
 
 const dashboard = ref({})
 const recentTickets = ref([])
@@ -117,4 +135,40 @@ function renderChart(stats) {
     options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { padding: 12, font: {size:11} } } } }
   })
 }
+
+function goToTicketWithPhoto(ticketId) {
+  router.push('/tickets/' + ticketId + '?tab=photos')
+}
 </script>
+
+<style scoped>
+/* 移动端统计卡片更紧凑 */
+@media (max-width: 576px) {
+  .stats-cards .card {
+    padding: 6px 2px !important;
+  }
+  .stats-cards .stat-value {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .stats-cards .stat-label {
+    font-size: 10px;
+    color: var(--bt-gray-400);
+    margin-top: 2px;
+  }
+  .mobile-quick-actions .btn {
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+  .mobile-quick-actions .btn i {
+    font-size: 14px;
+  }
+}
+
+/* 平板适配 */
+@media (min-width: 577px) and (max-width: 992px) {
+  .stats-cards .stat-value {
+    font-size: 18px;
+  }
+}
+</style>

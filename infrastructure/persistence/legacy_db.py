@@ -728,7 +728,7 @@ def _ensure_foundation_tables():
 
 
 # ===== 数据库 Schema 版本管理 =====
-_SCHEMA_VERSION = 23
+_SCHEMA_VERSION = 25
 
 
 def _init_schema_version():
@@ -772,6 +772,8 @@ def _run_migrations(from_version):
         21: "ticket_no NOT NULL约束 + NULL编号数据修复",
         22: "技术人员天薪/包工成本率字段(daily_rate/package_rate/daily_cost_rate/package_cost)",
         23: "性能优化：复合索引+部分索引+审计归档表+幂等缓存过期索引",
+        24: "工单服务明细行支持天薪/包工计费模式(days/package_fee)",
+        25: "客户表补全email/address/created_at/updated_at字段",
     }
     for v in range(from_version + 1, _SCHEMA_VERSION + 1):
         if v in migrations:

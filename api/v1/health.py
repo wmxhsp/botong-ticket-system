@@ -87,6 +87,17 @@ def health_check():
     except Exception:
         checks["checks"]["di_container"] = {"healthy": True, "type": "not_initialized"}
 
+    # 认证状态检查（不阻断请求，仅附加信息）
+    authenticated = False
+    try:
+        cookie_val = request.cookies.get("bt_auth")
+        if cookie_val:
+            from web.middleware.auth import _verify_token, _load_access_pwd
+            authenticated = _verify_token(cookie_val, _load_access_pwd())
+    except Exception:
+        pass
+    checks["authenticated"] = authenticated
+
     status_code = 200 if checks["status"] == "healthy" else 503
     return jsonify(checks), status_code
 

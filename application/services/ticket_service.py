@@ -1179,34 +1179,58 @@ class TicketService:
         tech_name = data.get("technician_name", "")
         service_fee_id = data.get("service_fee_id")
         hours = float(data.get("hours", 0))
+        days = float(data.get("days", 0))
+        package_fee = float(data.get("package_fee", 0))
         unit_price = float(data.get("unit_price", 0))
         cost_price = float(data.get("cost_price", 0))
         name = data.get("name", "")
-        line_total = round(hours * unit_price, 2)
-        line_cost = round(hours * cost_price, 2)
+        billing_type = data.get("billing_type", "hourly")
+        if billing_type == "daily":
+            line_total = round(days * unit_price, 2)
+            line_cost = round(days * cost_price, 2)
+        elif billing_type == "package":
+            line_total = round(package_fee, 2)
+            line_cost = round(cost_price, 2)
+        else:
+            line_total = round(hours * unit_price, 2)
+            line_cost = round(hours * cost_price, 2)
         item_id = self._repo.add_service_item(ticket_id, tech_name, service_fee_id,
                                                hours, unit_price, cost_price,
-                                               line_total, line_cost, name)
+                                               line_total, line_cost, name,
+                                               days, package_fee)
         self._update_ticket_assignee(ticket_id)
         self.recalc_ticket_total(ticket_id)
         return {"id": item_id, "ticket_id": ticket_id,
                 "technician_name": tech_name, "service_fee_id": service_fee_id,
-                "hours": hours, "unit_price": unit_price, "cost_price": cost_price,
-                "name": name, "line_total": line_total, "line_cost": line_cost}
+                "hours": hours, "days": days, "package_fee": package_fee,
+                "unit_price": unit_price, "cost_price": cost_price,
+                "name": name, "line_total": line_total, "line_cost": line_cost,
+                "billing_type": billing_type}
 
     def update_service_item(self, ticket_id: int, item_id: int, data: dict) -> dict:
         item = self._repo.find_service_item(item_id, ticket_id)
         if not item:
             raise TicketValidationError(f"服务明细 #{item_id} 不存在")
         update_data = {}
-        for col in ["technician_name", "service_fee_id", "hours", "unit_price", "cost_price", "name"]:
+        for col in ["technician_name", "service_fee_id", "hours", "days", "package_fee",
+                    "unit_price", "cost_price", "name"]:
             if col in data:
                 update_data[col] = data[col]
+        billing_type = data.get("billing_type", item.get("billing_type", "hourly"))
         hours = float(data.get("hours", item.get("hours", 0)))
+        days = float(data.get("days", item.get("days", 0)))
+        package_fee = float(data.get("package_fee", item.get("package_fee", 0)))
         unit_price = float(data.get("unit_price", item.get("unit_price", 0)))
         cost_price = float(data.get("cost_price", item.get("cost_price", 0)))
-        update_data["line_total"] = round(hours * unit_price, 2)
-        update_data["line_cost"] = round(hours * cost_price, 2)
+        if billing_type == "daily":
+            update_data["line_total"] = round(days * unit_price, 2)
+            update_data["line_cost"] = round(days * cost_price, 2)
+        elif billing_type == "package":
+            update_data["line_total"] = round(package_fee, 2)
+            update_data["line_cost"] = round(cost_price, 2)
+        else:
+            update_data["line_total"] = round(hours * unit_price, 2)
+            update_data["line_cost"] = round(hours * cost_price, 2)
         self._repo.update_service_item(item_id, update_data)
         self._update_ticket_assignee(ticket_id)
         self.recalc_ticket_total(ticket_id)
@@ -1224,14 +1248,25 @@ class TicketService:
             tech_name = item.get("technician_name", "")
             service_fee_id = item.get("service_fee_id")
             hours = float(item.get("hours", 0))
+            days = float(item.get("days", 0))
+            package_fee = float(item.get("package_fee", 0))
             unit_price = float(item.get("unit_price", 0))
             cost_price = float(item.get("cost_price", 0))
             name = item.get("name", "")
-            line_total = round(hours * unit_price, 2)
-            line_cost = round(hours * cost_price, 2)
+            billing_type = item.get("billing_type", "hourly")
+            if billing_type == "daily":
+                line_total = round(days * unit_price, 2)
+                line_cost = round(days * cost_price, 2)
+            elif billing_type == "package":
+                line_total = round(package_fee, 2)
+                line_cost = round(cost_price, 2)
+            else:
+                line_total = round(hours * unit_price, 2)
+                line_cost = round(hours * cost_price, 2)
             self._repo.add_service_item(ticket_id, tech_name, service_fee_id,
                                          hours, unit_price, cost_price,
-                                         line_total, line_cost, name)
+                                         line_total, line_cost, name,
+                                         days, package_fee)
             results.append(item)
         self._update_ticket_assignee(ticket_id)
         self.recalc_ticket_total(ticket_id)
@@ -1418,13 +1453,24 @@ class TicketService:
             technician = (item.get("technician_name") or "").strip()
             fee_id = item.get("service_fee_id")
             hours = float(item.get("hours", 0))
+            days = float(item.get("days", 0))
+            package_fee = float(item.get("package_fee", 0))
             unit_price = float(item.get("unit_price", 0))
             cost_price = float(item.get("cost_price", 0))
-            line_total = float(item.get("line_total", 0)) or (unit_price * hours)
-            line_cost = float(item.get("line_cost", 0)) or (cost_price * hours)
+            billing_type = item.get("billing_type", "hourly")
+            if billing_type == "daily":
+                line_total = float(item.get("line_total", 0)) or (unit_price * days)
+                line_cost = float(item.get("line_cost", 0)) or (cost_price * days)
+            elif billing_type == "package":
+                line_total = float(item.get("line_total", 0)) or package_fee
+                line_cost = float(item.get("line_cost", 0)) or cost_price
+            else:
+                line_total = float(item.get("line_total", 0)) or (unit_price * hours)
+                line_cost = float(item.get("line_cost", 0)) or (cost_price * hours)
             self._repo.add_service_item(ticket_id, technician, fee_id, hours,
                                          unit_price, cost_price, line_total,
-                                         line_cost, name=name)
+                                         line_cost, name=name, days=days,
+                                         package_fee=package_fee)
         self.recalc_ticket_total(ticket_id)
         return {"message": f"已保存 {len(items)} 条服务明细"}
 
@@ -1433,10 +1479,11 @@ class TicketService:
 
     def add_service_item_raw(self, ticket_id: int, technician: str, fee_id,
                               hours, unit_price, cost_price, line_total, line_cost,
-                              name: str = ""):
+                              name: str = "", days: float = 0, package_fee: float = 0):
         return self._repo.add_service_item(ticket_id, technician, fee_id, hours,
                                             unit_price, cost_price, line_total,
-                                            line_cost, name=name)
+                                            line_cost, name=name, days=days,
+                                            package_fee=package_fee)
 
     def update_service_item_raw(self, item_id: int, data: dict):
         self._repo.update_service_item(item_id, data)
@@ -2118,10 +2165,20 @@ class TicketService:
 
     def calc_service_item_totals(self, data: dict) -> dict:
         hours = float(data.get("hours", 0))
+        days = float(data.get("days", 0))
+        package_fee = float(data.get("package_fee", 0))
         unit_price = float(data.get("unit_price", 0))
         cost_price = float(data.get("cost_price", 0))
-        data["line_total"] = round(hours * unit_price, 2)
-        data["line_cost"] = round(hours * cost_price, 2)
+        billing_type = data.get("billing_type", "hourly")
+        if billing_type == "daily":
+            data["line_total"] = round(days * unit_price, 2)
+            data["line_cost"] = round(days * cost_price, 2)
+        elif billing_type == "package":
+            data["line_total"] = round(package_fee, 2)
+            data["line_cost"] = round(cost_price, 2)
+        else:
+            data["line_total"] = round(hours * unit_price, 2)
+            data["line_cost"] = round(hours * cost_price, 2)
         return data
 
     # ===== CSV 导出 =====

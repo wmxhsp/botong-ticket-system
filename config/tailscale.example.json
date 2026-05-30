@@ -1,0 +1,10 @@
+{
+  "comment": "博通工单系统 - Tailscale 配置示例",
+  "enabled": true,
+  "tailscale_host": "your-machine-name.tailxxxxx.ts.net",
+  "port": 5053,
+  "allow_local_access": true,
+  "allow_tailscale_access": true,
+  "ip_whitelist": [],
+  "notes": "配置说明：将此文件复制为 tailscale.json 并修改为实际配置"
+}

@@ -39,11 +39,14 @@ describe('useAutoSave', () => {
   })
 
   it('saves to localStorage on change (debounced)', async () => {
-    const { formData, save } = useAutoSave('test-save-manual', { name: '' }, 1000)
+    const { formData, save } = useAutoSave('test-save-manual', { name: '' }, 50)
 
     formData.value.name = '新名字'
     // Manually trigger save instead of relying on debounced watch
     save()
+
+    // Wait for debounce to fire (50ms + small buffer)
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     const saved = JSON.parse(localStorage.getItem('bt_draft_test-save-manual'))
     expect(saved.name).toBe('新名字')

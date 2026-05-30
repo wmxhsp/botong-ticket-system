@@ -1,5 +1,5 @@
 """
-===== 博通工单管理系统 — 完整测试数据集 =====
+===== 博通工单管理系统 —— 完整测试数据集 =====
 
 覆盖模块：
   ✓ 客户     ✓ 工单（9种状态）  ✓ 设备     ✓ 服务项目
@@ -17,10 +17,10 @@ from infrastructure.persistence.legacy_db import db_execute, db_query, db_query_
 from infrastructure.di.service_locator import reg
 from infrastructure.di.bootstrap import bootstrap
 bootstrap()
-from infrastructure.di.service_locator import resolve_service
-finance_service = resolve_service("finance_service")
-ticket_svc = resolve_service("ticket_service")
-inventory_service = resolve_service("inventory_service")
+from infrastructure.di.service_locator import inject_service
+finance_service = inject_service("finance_service")
+ticket_svc = inject_service("ticket_service")
+inventory_service = inject_service("inventory_service")
 
 now = datetime.now()
 today = now.strftime("%Y-%m-%d")
@@ -57,31 +57,24 @@ print(f"   ✅ 已确保 {len(clients_data)} 个客户信息完整")
 # ============================================================
 print("2️⃣  补充设备数据 ...")
 equipment_list = [
-    ("集宁一中", "交互智能平板", "Seewo", "B86EB", "SN-SW-2024001", now - timedelta(days=180)),
-    ("集宁一中", "交互智能平板", "Seewo", "B86EB", "SN-SW-2024002", now - timedelta(days=160)),
-    ("集宁京能电力", "安防摄像头", "Hikvision", "DS-2CD3T86G2", "SN-HK-2023001", now - timedelta(days=365)),
-    ("集宁京能电力", "交换机", "Huawei", "S5735S-L24T4X-A", "SN-HW-2024001", now - timedelta(days=90)),
-    ("蜗牛电竞网吧", "服务器", "Dell", "R750xs", "SN-DL-2023002", now - timedelta(days=400)),
-    ("蜗牛电竞网吧", "显示器", "AOC", "27G2SP", "SN-AOC-2024005", now - timedelta(days=30)),
-    ("乌兰察布市蒙古族中学", "投影仪", "Epson", "CB-2155W", "SN-EP-2023003", now - timedelta(days=500)),
-    ("益民劳务有限公司", "台式电脑", "Lenovo", "ThinkCentre M730q", "SN-LN-2024006", now - timedelta(days=60)),
-    ("王利平", "笔记本电脑", "Dell", "Latitude 5440", "SN-DL-2024007", now - timedelta(days=15)),
-    ("王利平", "打印机", "HP", "LaserJet MFP M227fdn", "SN-HP-2023010", now - timedelta(days=200)),
+    ("集宁一中", "交互智能平板", "希沃 Seewo B86EB", "SN-SW-2024001", (now - timedelta(days=180)).strftime("%Y-%m-%d"), "集宁区"),
+    ("集宁一中", "交互智能平板", "希沃 Seewo B86EB", "SN-SW-2024002", (now - timedelta(days=160)).strftime("%Y-%m-%d"), "集宁区"),
+    ("集宁京能电力", "安防摄像头", "海康威视 Hikvision DS-2CD3T86G2", "SN-HK-2023001", (now - timedelta(days=365)).strftime("%Y-%m-%d"), "集宁区"),
+    ("集宁京能电力", "交换机", "华为 Huawei S5735S-L24T4X-A", "SN-HW-2024001", (now - timedelta(days=90)).strftime("%Y-%m-%d"), "集宁区"),
+    ("蜗牛电竞网吧", "服务器", "Dell R750xs", "SN-DL-2023002", (now - timedelta(days=400)).strftime("%Y-%m-%d"), "集宁区"),
+    ("蜗牛电竞网吧", "显示器", "AOC 27G2SP", "SN-AOC-2024005", (now - timedelta(days=30)).strftime("%Y-%m-%d"), "集宁区"),
+    ("乌兰察布市蒙古族中学", "投影仪", "爱普生 Epson CB-2155W", "SN-EP-2023003", (now - timedelta(days=500)).strftime("%Y-%m-%d"), "集宁区"),
+    ("益民劳务有限公司", "台式电脑", "联想 ThinkCentre M730q", "SN-LN-2024006", (now - timedelta(days=60)).strftime("%Y-%m-%d"), "集宁区"),
+    ("王利平", "笔记本电脑", "Dell Latitude 5440", "SN-DL-2024007", (now - timedelta(days=15)).strftime("%Y-%m-%d"), "集宁区"),
+    ("王利平", "打印机", "HP LaserJet MFP M227fdn", "SN-HP-2023010", (now - timedelta(days=200)).strftime("%Y-%m-%d"), "集宁区"),
 ]
 
-for client, device_type, brand, model, sn, install_date in equipment_list:
-    c = db_query_one("SELECT id FROM clients WHERE name = ?", (client,))
-    if not c:
-        continue
-    existing = db_query_one("SELECT id FROM equipment WHERE serial_no = ?", (sn,))
-    if existing:
-        continue
-    db_execute("""INSERT INTO equipment 
-        (name, type, brand, model, serial_no, client, install_date, warranty_expire, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (device_type, device_type, brand, model, sn, client,
-         install_date.strftime("%Y-%m-%d"),
-         (install_date + timedelta(days=365*3)).strftime("%Y-%m-%d"), today_ts))
+for client, device_type, model, serial_no, warranty_date, location in equipment_list:
+    existing = db_query_one("SELECT id FROM equipment WHERE serial_no = ?", (serial_no,))
+    if not existing:
+        db_execute("""INSERT INTO equipment (name, type, client, model, serial_no, warranty_expire, location)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   (device_type, device_type, client, model, serial_no, warranty_date, location))
 
 print(f"   ✅ 新增/确保 {len(equipment_list)} 个设备")
 
@@ -125,7 +118,7 @@ ticket_plans = [
     ("王利平", "维修", "笔记本屏幕闪烁", "pending_client", 280, "笔记本维修"),
     ("王利平", "安装", "新购打印机安装调试", "closed", 150, "打印机安装"),
     ("乌兰察布市蒙古族中学", "维修", "校园广播系统故障", "in_progress", 1200, "广播系统维修"),
-    ("二毛姐", "维修", "家中电脑运行缓慢", "completed", 180, "电脑清灰升级"),
+    ("二毛姐", "维修", "家里电脑运行缓慢", "completed", 180, "电脑清灰升级"),
     ("集宁京能电力", "维护", "机房月度巡检", "open", 2000, "机房巡检"),
     ("蜗牛电竞网吧", "维修", "3号机显卡花屏，需更换", "pending_payment", 850, "显卡更换"),
 ]
@@ -182,10 +175,9 @@ fees_to_add = [
 ]
 for name, fee_type, price, desc in fees_to_add:
     existing = db_query_one("SELECT id FROM service_fees WHERE name = ?", (name,))
-    if existing:
-        continue
-    db_execute("INSERT INTO service_fees (name, fee_type, unit_price, description) VALUES (?,?,?,?)",
-               (name, fee_type, price, desc))
+    if not existing:
+        db_execute("INSERT INTO service_fees (name, fee_type, unit_price, description) VALUES (?,?,?,?)",
+                   (name, fee_type, price, desc))
 print(f"   ✅ 已有 {db_query_one('SELECT COUNT(*) as c FROM service_fees')['c']} 个服务项目")
 
 # ============================================================
@@ -194,300 +186,179 @@ print(f"   ✅ 已有 {db_query_one('SELECT COUNT(*) as c FROM service_fees')['c
 print("6️⃣  创建收入记录 ...")
 income_records = [
     # (client, amount, method, source_type, source_id, description)
-    ("集宁一中", 1680, "对公", "ticket", created_tickets[0], f"工单{created_tickets[0]} 一体机维修收款"),
-    ("王利平", 150, "微信", "ticket", created_tickets[7], f"工单{created_tickets[7]} 打印机安装收款"),
-    ("益民劳务有限公司", 350, "微信", "ticket", created_tickets[5], f"工单{created_tickets[5]} 电脑维修收款"),
+    ("集宁一中", 1680, "对公", "ticket", created_tickets[0] if len(created_tickets) > 0 else None, f"工单# {created_tickets[0]} 一体机维修收款" if len(created_tickets) > 0 else "测试收款"),
+    ("王利平", 150, "微信", "ticket", created_tickets[7] if len(created_tickets) > 7 else None, f"工单# {created_tickets[7]} 打印机安装收款" if len(created_tickets) > 7 else "测试收款"),
+    ("益民劳务有限公司", 350, "微信", "ticket", created_tickets[5] if len(created_tickets) > 5 else None, f"工单# {created_tickets[5]} 电脑维修收款" if len(created_tickets) > 5 else "测试收款"),
 ]
 
 for client, amount, method, src_type, src_id, desc in income_records:
     # 随机过去1-7天的日期作为收款日期
     paid_dt = now - timedelta(days=len(income_records)*2, hours=len(income_records))
     existing = db_query_one(
-        "SELECT id FROM income_records WHERE source_type=? AND source_id=? AND amount=?",
-        (src_type, src_id, amount))
-    if existing:
-        continue
-    finance_service.record_ticket_income(client, amount, method, src_id,
-                                        paid_dt.strftime("%Y-%m-%d %H:%M"), desc)
+        "SELECT id FROM income_records WHERE amount=? AND client=? AND description=?",
+        (amount, client, desc))
+    if not existing:
+        finance_service.record_ticket_income(client, amount, method, src_id,
+                                          paid_dt.strftime("%Y-%m-%d %H:%M"), desc)
 print(f"   ✅ 已创建 {len(income_records)} 条收入记录")
 
 # ============================================================
-# 7. 创建销售记录（包含完整支付流程）
+# 7. 确保有商品数据
 # ============================================================
-print("7️⃣  创建销售记录 ...")
-sales_plans = [
-    # (goods_id, client, quantity, amount, payment_method)
-    (2, "集宁一中", 1, 240, "对公"),     # 加速器20客户端
-    (3, "蜗牛电竞网吧", 5, 750, "微信"),  # OPS风扇x5
-    (5, "王利平", 2, 80, "微信"),         # 电源适配器x2
-    (6, "集宁京能电力", 10, 260, "对公"), # 公牛插板x10
-    (9, "蜗牛电竞网吧", 3, 90, "微信"),   # 监控电源x3
+print("7️⃣  确保商品数据 ...")
+# 先确保有商品分类
+categories = ["网络设备", "电脑配件", "办公耗材", "监控设备", "线材"]
+for cat_name in categories:
+    existing = db_query_one("SELECT id FROM goods_categories WHERE name = ?", (cat_name,))
+    if not existing:
+        db_execute("INSERT INTO goods_categories (name) VALUES (?)", (cat_name,))
+
+# 确保有商品数据
+goods_data = [
+    ("TP-LINK千兆路由器", "网络设备", 285, 200, 3),
+    ("超五类网线305米箱", "线材", 420, 300, 2),
+    ("海康威视摄像头", "监控设备", 180, 120, 8),
+    ("电脑电源500W", "电脑配件", 250, 180, 3),
+    ("22寸显示器", "电脑配件", 650, 500, 2),
+    ("HDMI线2米", "线材", 25, 15, 10),
+    ("VGA线1.5米", "线材", 18, 10, 10),
 ]
 
-for gid, client, qty, amount, method in sales_plans:
-    try:
-        result = inventory_service.record_sale(
-            goods_id=gid, client=client, quantity=qty,
-            payment_method=method, amount=amount,
-            notes=f"批量销售-{client}"
-        )
-        print(f"   → 销售 {result.get('sale_id','?')}: {client} x{qty}")
-    except Exception as e:
-        print(f"   ⚠️ 销售失败 {gid} {client}: {e}")
-        # 库存不足时，强制写入纯收入
-        finance_service.record_quick_income(
-            client, amount, method,
-            f"销售 {gid} x{qty} (库存不足)", now.isoformat())
-
-# ============================================================
-# 8. 创建采购单 + 入库
-# ============================================================
-print("8️⃣  创建采购单和入库 ...")
-purchase_data = [
-    ("默认供货商", "联想电源适配器采购", 40, 10, 20.0),  # (vendor, desc, item_count unit_cost)
-    ("默认供货商", "公牛插板补货", 26, 20, 15.0),
-    ("默认供货商", "监控电源采购", 30, 10, 15.0),
-]
-
-for i, (vendor, desc, unit_price, qty, unit_cost) in enumerate(purchase_data):
-    po_no = f"PO-SEED-{today.replace('-','')}-{i}"
-    try:
-        po_id = db_execute("""INSERT INTO purchase_orders (po_no, vendor, purchase_date, status, notes, total_amount, payment_status, created_at)
-                          VALUES (?,?,?,?,?,?,?,?)""",
-                         (po_no, vendor, today, "completed", desc, unit_cost*qty, "unpaid", today_ts))
-        g = db_query_one("SELECT id, name FROM goods ORDER BY id LIMIT 1 OFFSET ?", (i,))
-        if g:
-            db_execute("""INSERT INTO purchase_items (po_id, goods_id, goods_name, quantity, unit_cost, total_cost)
-                          VALUES (?,?,?,?,?,?)""",
-                         (po_id, g["id"], g["name"], qty, unit_cost, unit_cost*qty))
-        print(f"   → 采购单 {po_no}: {desc} x{qty} = ¥{unit_cost*qty:.0f}")
-    except Exception as e:
-        print(f"   ⚠️ 采购失败 {desc}: {str(e)[:80]}")
-
-# ============================================================
-# 8.5 采购入库 → 生成库存
-# ============================================================
-print("8.5️⃣  采购入库生成库存 ...")
-stock_count = 0
-for i, (vendor, desc, unit_price, qty, unit_cost) in enumerate(purchase_data):
-    g = db_query_one("SELECT id, name, is_bulk FROM goods ORDER BY id LIMIT 1 OFFSET ?", (i,))
-    if g:
-        gid = g["id"]
-        try:
-            items = reg.inventory_svc.add_inventory(
-                goods_id=gid,
-                quantity=qty,
-                location="主库房",
-                notes=f"采购入库: {desc}",
-            )
-            stock_count += len(items) if items else 0
-            print(f"   → 入库 {g['name']} x{qty} (库存项: {len(items) if items else 0})")
-        except Exception as e:
-            print(f"   ⚠️ 入库失败 {g['name']}: {str(e)[:80]}")
-print(f"   ✅ 已创建 {stock_count} 个库存项")
-
-# ============================================================
-# 8.6 补充更多商品 + 库存（覆盖预警场景）
-# ============================================================
-print("8.6️⃣  补充商品库存（含预警）...")
-extra_goods = [
-    ("TP-LINK千兆路由器", 285, 12, 3),
-    ("超五类网线305米箱", 420, 5, 2),
-    ("海康威视摄像头", 180, 8, 1),
-    ("电脑电源500W", 250, 15, 5),
-    ("22寸显示器", 650, 4, 4),
-]
-stock_count2 = 0
-for name, price, base_qty, low_threshold in extra_goods:
-    g = db_query_one("SELECT id FROM goods WHERE name = ?", (name,))
-    if not g:
-        gid = db_execute(
-            "INSERT INTO goods (name, selling_price, cost_price, unit, category) "
-            "VALUES (?, ?, ?, '个', '网络设备')",
-            (name, price, price * 0.7))
+goods_ids = []
+for name, cat_name, sell_price, cost_price, min_stock in goods_data:
+    cat = db_query_one("SELECT id FROM goods_categories WHERE name = ?", (cat_name,))
+    cat_id = cat["id"] if cat else 1
+    existing = db_query_one("SELECT id FROM goods WHERE name = ?", (name,))
+    if existing:
+        goods_ids.append(existing["id"])
     else:
-        gid = g["id"]
+        gid = db_execute("INSERT INTO goods (name, category_id, selling_price, cost_price, min_stock, unit, created_at) VALUES (?,?,?,?,?,?,?)",
+                       (name, cat_id, sell_price, cost_price, min_stock, "个", today_ts))
+        goods_ids.append(gid)
 
-    # 创建库存（低于阈值的商品制造低库存预警）
-    qty = min(base_qty, low_threshold + 1)
-    try:
-        items = reg.inventory_svc.add_inventory(
-            goods_id=gid, quantity=qty, location="主库房",
-            notes=f"初始入库 {name}")
-        stock_count2 += len(items) if items else 0
-        print(f"   → {name} x{qty} (预警阈值: {low_threshold})")
-    except Exception as e:
-        print(f"   ⚠️ {name}: {str(e)[:60]}")
-print(f"   ✅ 已补充 {stock_count2} 个库存项")
-
-# 低库存预警商品（库存为0或极少）
-alert_goods = [
-    ("HDMI线2米", 25, "线材", 10),
-    ("VGA线", 18, "线材", 10),
-]
-for name, price, cat, min_qty in alert_goods:
-    g = db_query_one("SELECT id FROM goods WHERE name = ?", (name,))
-    if not g:
-        gid = db_execute(
-            "INSERT INTO goods (name, selling_price, cost_price, unit, category) "
-            "VALUES (?, ?, ?, '条', ?)",
-            (name, price, price * 0.6, cat))
-        # 只创建1个库存（远低于阈值）
-        reg.inventory_svc.add_inventory(goods_id=gid, quantity=1, location="主库房",
-                                         notes="少量库存，即将用完")
-        print(f"   ⚠️ 预警商品: {name} 仅剩 1 个 (建议补货)")
-    else:
-        print(f"   → {name} 已存在")
-
-# 耗材类（散装商品）
-bulk_goods = [
-    ("焊锡丝", 15, "克", 200),
-    ("热缩管", 0.5, "米", 100),
-]
-for name, price, unit, qty in bulk_goods:
-    g = db_query_one("SELECT id FROM goods WHERE name = ?", (name,))
-    if not g:
-        gid = db_execute(
-            "INSERT INTO goods (name, selling_price, cost_price, unit, category, is_bulk) "
-            "VALUES (?, ?, ?, ?, '耗材', 1)",
-            (name, price, price * 0.5, unit))
-        reg.inventory_svc.add_inventory(goods_id=gid, quantity=qty, location="耗材柜",
-                                         notes=f"初始库存 {name}")
-        print(f"   → 散装: {name} x{qty}{unit}")
-    else:
-        print(f"   → {name} 已存在")
+print(f"   ✅ 已确保 {len(goods_data)} 个商品")
 
 # ============================================================
-# 9. 创建业务支出记录
+# 8. 创建供应商
 # ============================================================
-print("9️⃣  创建业务支出记录 ...")
-expenses_data = [
-    ("采购", "京东", 450, "采购网线、水晶头等耗材"),
+print("8️⃣  创建供应商数据 ...")
+suppliers_data = [
+    ("京东电脑办公专营店", "张经理", "13800138000", 30),
+    ("海康威视授权经销商", "李经理", "13900139000", 30),
+    ("TP-LINK官方代理", "王经理", "13700137000", 30),
+]
+
+for name, contact, phone, payment_terms in suppliers_data:
+    existing = db_query_one("SELECT id FROM suppliers WHERE name = ?", (name,))
+    if not existing:
+        db_execute("INSERT INTO suppliers (name, contact, phone, payment_terms, created_at) VALUES (?,?,?,?,?)",
+                  (name, contact, phone, payment_terms, today_ts))
+
+print(f"   ✅ 已确保 {len(suppliers_data)} 个供应商")
+
+# ============================================================
+# 9. 创建技术员
+# ============================================================
+print("9️⃣  创建技术员数据 ...")
+technicians_data = [
+    ("苏鹏", "13811112222", "网络、系统、硬件", "hourly", 60, 50),
+    ("王浩博", "13822223333", "系统安装、维护", "hourly", 45, 35),
+    ("李学平", "13833334444", "网络、监控", "hourly", 50, 40),
+    ("小赵", "13844445555", "基础维修", "hourly", 30, 25),
+]
+
+for name, phone, skills, billing_type, labor_cost, cost_rate in technicians_data:
+    existing = db_query_one("SELECT id FROM technicians WHERE name = ?", (name,))
+    if not existing:
+        db_execute("""INSERT INTO technicians (name, phone, skills, billing_type, cost_rate, labor_cost, created_at)
+                   VALUES (?,?,?,?,?,?,?)""",
+                  (name, phone, skills, billing_type, cost_rate, labor_cost, today_ts))
+
+print(f"   ✅ 已确保 {len(technicians_data)} 个技术员")
+
+# ============================================================
+# 10. 创建业务支出记录
+# ============================================================
+print("🔟  创建业务支出记录 ...")
+expense_data = [
+    ("配件采购", "京东", 450, "采购网线、水晶头等耗材"),
     ("交通费", "", 120, "本月外出维修油费"),
     ("维修工具", "五金店", 85, "螺丝刀套装"),
     ("办公用品", "晨光文具", 165, "打印纸、墨盒"),
     ("通信费", "中国移动", 58, "工作手机话费"),
 ]
 
-for cat, vendor, amount, desc in expenses_data:
-    paid_dt = now - timedelta(days=len(expenses_data))
+for cat, vendor, amount, desc in expense_data:
+    paid_dt = now - timedelta(days=len(expense_data))
     finance_service.add_expense(category=cat, vendor=vendor, amount=amount,
                                  description=desc, paid_at=paid_dt.strftime("%Y-%m-%d"),
                                  related_ticket_id=None)
-print(f"   ✅ 已创建 {len(expenses_data)} 条业务支出")
-
-# ============================================================
-# 10. 其他费用（分类覆盖）
-# ============================================================
-print("🔟  创建其他费用记录 ...")
-personal_expenses = [
-    ("餐费", 35, "微信", "午餐-刀削面"),
-    ("餐费", 42, "支付宝", "晚餐-火锅"),
-    ("交通费", 15.5, "微信", "打车回家"),
-    ("购物", 128, "美团", "超市日用品"),
-    ("房租", 1200, "微信", "5月房租"),
-    ("水电费", 85, "微信", "5月水电"),
-    ("通信费", 39, "微信", "话费充值"),
-    ("娱乐", 56, "支付宝", "电影票"),
-    ("医疗", 68, "微信", "药店买药"),
-]
-
-for cat, amount, pay_type, desc in personal_expenses:
-    paid_dt = now - timedelta(days=len(personal_expenses))
-    db_execute("""INSERT INTO expense_records 
-        (category, vendor, amount, paid_at, description, is_personal, payment_type)
-        VALUES (?, ?, ?, ?, ?, 1, ?)""",
-        (cat, "", amount, paid_dt.strftime("%Y-%m-%d"), desc, pay_type))
-print(f"   ✅ 已创建 {len(personal_expenses)} 条其他费用")
+print(f"   ✅ 已创建 {len(expense_data)} 条业务支出")
 
 # ============================================================
 # 11. 创建待办事项（关联工单）
 # ============================================================
 print("1️⃣1️⃣ 创建待办事项（含关联工单）...")
 todo_data = [
-    ("处理工单-集宁一中投影仪", "H", created_tickets[1] if len(created_tickets) > 1 else None, today + " 17:00"),
-    ("采购配件-蜗牛网吧触摸框", "M", created_tickets[3] if len(created_tickets) > 3 else None, today + " 15:00"),
-    ("回访客户-益民劳务电脑维修", "L", created_tickets[5] if len(created_tickets) > 5 else None, today + " 10:00"),
-    ("月度报表汇总", "M", None, (now + timedelta(days=2)).strftime("%Y-%m-%d") + " 18:00"),
-    ("跟进蜗牛网吧续费", "H", None, (now + timedelta(days=1)).strftime("%Y-%m-%d") + " 12:00"),
+    ("处理工单-集宁一中投影仪", "H", "work", today + " 17:00", created_tickets[1] if len(created_tickets) > 1 else None),
+    ("采购配件-蜗牛网吧触摸框", "M", "work", today + " 15:00", created_tickets[3] if len(created_tickets) > 3 else None),
+    ("回访客户-益民劳务电脑维修", "L", "work", today + " 10:00", created_tickets[5] if len(created_tickets) > 5 else None),
+    ("月度报表汇总", "M", "work", (now + timedelta(days=2)).strftime("%Y-%m-%d") + " 18:00", None),
+    ("跟进蜗牛网吧续费", "H", "work", (now + timedelta(days=1)).strftime("%Y-%m-%d") + " 12:00", None),
 ]
 
-todo_svc = resolve_service("todo_service")
-for title, priority, ticket_id, due_date in todo_data:
+todo_svc = inject_service("todo_service")
+for title, priority, category, due_date, ticket_id in todo_data:
     existing = db_query_one("SELECT id FROM todos WHERE title LIKE ?", (title[:10] + "%",))
-    if existing:
-        continue
-    todo_svc.create(title=title, priority=priority, source_type="ticket" if ticket_id else "",
-                    source_id=ticket_id, due_date=due_date, category="work", remind=1)
+    if not existing:
+        todo_svc.create(title=title, priority=priority, category=category,
+                      source_type="ticket" if ticket_id else "",
+                      source_id=ticket_id, due_date=due_date, remind=1)
 print(f"   ✅ 已创建 {len(todo_data)} 条待办")
 
 # ============================================================
-# 12. 设置预算
+# 12. 关联工单-设备
 # ============================================================
-print("1️⃣2️⃣ 设置个人月度预算 ...")
-budgets = [
-    ("餐费", 1500, today[:7]),
-    ("房租", 1200, today[:7]),
-    ("交通费", 300, today[:7]),
-    ("购物", 500, today[:7]),
-    ("娱乐", 200, today[:7]),
-]
-for cat, budget, month in budgets:
-    existing = db_query_one("SELECT id FROM expense_budgets WHERE category=? AND month=?",
-                            (cat, month))
-    if existing:
-        db_execute("UPDATE expense_budgets SET budget_amount=? WHERE id=?", (budget, existing["id"]))
-    else:
-        db_execute("INSERT INTO expense_budgets (category, month, budget_amount) VALUES (?,?,?)",
-                   (cat, month, budget))
-print(f"   ✅ 已设置 {len(budgets)} 个预算")
-
-# ============================================================
-# 13. 关联工单-设备
-# ============================================================
-print("1️⃣3️⃣ 关联工单与设备 ...")
-for i, tid in enumerate(created_tickets[:6]):  # 前6个工单关联设备
-    equip = db_query_one("SELECT id FROM equipment LIMIT 1 OFFSET ?", (i,))
+print("1️⃣2️⃣ 关联工单与设备 ...")
+for idx, tid in enumerate(created_tickets[:6]):  # 前6个工单关联设备
+    equip = db_query_one("SELECT id FROM equipment LIMIT 1 OFFSET ?", (idx,))
     if not equip:
         break
     existing = db_query_one("SELECT id FROM ticket_equipment WHERE ticket_id=? AND equipment_id=?",
-                            (tid, equip["id"]))
-    if existing:
-        continue
-    db_execute("INSERT INTO ticket_equipment (ticket_id, equipment_id) VALUES (?,?)",
-               (tid, equip["id"]))
+                          (tid, equip["id"]))
+    if not existing:
+        db_execute("INSERT INTO ticket_equipment (ticket_id, equipment_id) VALUES (?,?)",
+                  (tid, equip["id"]))
 print(f"   ✅ 已关联 6 个工单-设备")
 
 # ============================================================
-# 14. 创建提醒（工单预约）
+# 13. 创建提醒（工单预约）
 # ============================================================
-print("1️⃣4️⃣ 创建工单提醒 ...")
-for i, tid in enumerate(created_tickets[:5]):
-    appointment = (now + timedelta(days=i+1)).strftime("%Y-%m-%d 09:00")
+print("1️⃣3️⃣ 创建工单提醒 ...")
+for idx, tid in enumerate(created_tickets[:5]):
+    appointment = (now + timedelta(days=idx+1)).strftime("%Y-%m-%d 09:00")
     db_execute("UPDATE tickets SET appointment_at = ? WHERE id = ?", (appointment, tid))
     existing_reminder = db_query_one("SELECT id FROM ticket_reminders WHERE ticket_id=?", (tid,))
-    if existing_reminder:
-        continue
-    ticket = db_query_one("SELECT client, title FROM tickets WHERE id=?", (tid,))
-    if ticket:
-        reminder_service = resolve_service("reminder_service")
-        reminder_service.create_reminder(
-            ticket_id=tid, appointment_at=appointment,
-            client_name=ticket["client"], service_content=ticket.get("title", "") or ""
-        )
+    if not existing_reminder:
+        ticket = db_query_one("SELECT client, title FROM tickets WHERE id=?", (tid,))
+        if ticket:
+            reminder_service = inject_service("reminder_service")
+            reminder_service.create_reminder(
+                ticket_id=tid, appointment_at=appointment,
+                client_name=ticket["client"], service_content=ticket.get("title", "") or ""
+            )
 print(f"   ✅ 已创建 5 个工单预约提醒")
 
 # ============================================================
-# 15. 完善历史记录
+# 14. 完善历史记录
 # ============================================================
-print("1️⃣5️⃣ 补充审计日志 ...")
-for i, tid in enumerate(created_tickets[:8]):
+print("1️⃣4️⃣ 补充审计日志 ...")
+for idx, tid in enumerate(created_tickets[:8]):
     existing = db_query_one("SELECT id FROM history WHERE ticket_id=? AND action='seed_data'", (tid,))
-    if existing:
-        continue
-    db_execute("INSERT INTO history (ticket_id, action, timestamp, by, changes) VALUES (?,?,?,?,?)",
-               (tid, "seed_data", today_ts, "system",
-                json.dumps({"note": "测试数据集-系统生成"}, ensure_ascii=False)))
+    if not existing:
+        db_execute("INSERT INTO history (ticket_id, action, timestamp, by, changes) VALUES (?,?,?,?,?)",
+                  (tid, "seed_data", today_ts, "system",
+                   json.dumps({"note": "测试数据集-系统生成"}, ensure_ascii=False)))
 print(f"   ✅ 已补充历史记录")
 
 # ============================================================
@@ -497,10 +368,12 @@ print("\n" + "="*60)
 print("📊 测试数据生成完毕！最终数据量：")
 print("="*60)
 for table in ["clients", "tickets", "equipment", "income_records", "expense_records",
-              "goods", "inventory_items", "purchase_orders", "sales_records",
-              "suppliers", "technicians", "service_fees", "todos", "notifications",
-              "ticket_reminders", "expense_categories", "expense_budgets"]:
-    count = db_query_one(f"SELECT COUNT(*) as c FROM {table}")["c"]
-    print(f"  {table}: {count}")
+              "goods", "suppliers", "technicians", "service_fees", "todos",
+              "ticket_reminders"]:
+    try:
+        count = db_query_one(f"SELECT COUNT(*) as c FROM {table}")["c"]
+        print(f"  {table}: {count}")
+    except Exception as e:
+        print(f"  {table}: 查询失败 - {str(e)[:30]}")
 
 print("\n✅ 测试数据创建完成!")

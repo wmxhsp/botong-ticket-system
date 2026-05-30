@@ -1,0 +1,155 @@
+# SearXNG 配置文件 - 针对中文搜索优化
+# 用于博通工单系统 MCP 服务器
+
+use_default_settings: true
+
+server:
+  # 基础配置
+  secret_key: "botong-ticket-system-searxng-key-2025"
+  limiter: false
+  image_proxy: true
+  
+  # 允许 JSON 格式输出（用于 API 调用）
+  method: "GET"
+  
+  # 允许来自本地的请求
+  bind_address: "0.0.0.0"
+  port: 8080
+
+search:
+  # 搜索语言设置
+  safe_search: 0
+  autocomplete: "duckduckgo"
+  default_lang: "zh-CN"
+  
+  # 允许 JSON 格式
+  formats:
+    - html
+    - json
+    - csv
+    - rss
+  
+ui:
+  # 界面设置
+  static_use_hash: true
+  default_theme: simple
+  query_in_title: true
+  
+outgoing:
+  # 请求设置
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  useragent_suffix: ""
+  
+engines:
+  # 启用中文搜索引擎
+  - name: baidu
+    engine: baidu
+    shortcut: bd
+    categories: [general, web]
+    enabled: true
+    
+  - name: bing
+    engine: bing
+    shortcut: bi
+    categories: [general, web]
+    enabled: true
+    
+  - name: bing images
+    engine: bing_images
+    shortcut: bii
+    categories: [images]
+    enabled: true
+    
+  - name: bing news
+    engine: bing_news
+    shortcut: bin
+    categories: [news]
+    enabled: true
+    
+  - name: bing videos
+    engine: bing_videos
+    shortcut: biv
+    categories: [videos]
+    enabled: true
+    
+  - name: google
+    engine: google
+    shortcut: go
+    categories: [general, web]
+    enabled: true
+    
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    categories: [general, web]
+    enabled: true
+    
+  - name: startpage
+    engine: startpage
+    shortcut: sp
+    categories: [general, web]
+    enabled: true
+    
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    categories: [general, wikimedia]
+    enabled: true
+    
+  - name: github
+    engine: github
+    shortcut: gh
+    categories: [it, repos]
+    enabled: true
+    
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: so
+    categories: [it, q&a]
+    enabled: true
+    
+  - name: zhihu
+    engine: xpath
+    shortcut: zh
+    categories: [general, q&a]
+    search_url: https://www.zhihu.com/search?type=content&q={query}
+    results_xpath: //div[@class="ContentItem"]
+    url_xpath: .//h2[@class="ContentItem-title"]/a/@href
+    title_xpath: .//h2[@class="ContentItem-title"]/a
+    content_xpath: .//div[@class="RichContent-inner"]
+    enabled: true
+    about:
+      website: https://www.zhihu.com/
+      wikidata_id: Q10873829
+      official_api_documentation: https://www.zhihu.com/
+      use_official_api: false
+      require_api_key: false
+      results: HTML
+      language: zh
+
+# 启用中文语言支持
+locales:
+  - zh_CN
+  - zh_TW
+  - zh_HK
+  - en
+
+# 插件设置
+enabled_plugins:
+  - "Hash plugin"
+  - "Self Informations"
+  - "Tracker URL remover"
+  - "Ahmia blacklist"
+  - "Hostnames plugin"
+  - "Open Access DOI rewrite"
+  - "Vim-like hotkeys"
+
+# 结果设置
+result_proxy:
+  enabled: true
+  
+# 缓存设置
+cache:
+  enabled: true
+  expiration_time: 3600

@@ -54,8 +54,20 @@ def stock_logs():
 
 @bp_stock.route("/alerts")
 def stock_alerts():
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
     result = inject_service('inventory_service').check_alerts_with_summary()
-    return jsonify(result)
+    alerts = result.get("alerts", [])
+    total = len(alerts)
+    start = (page - 1) * per_page
+    paginated = alerts[start:start + per_page]
+    return jsonify({
+        "alerts": paginated,
+        "summary": result.get("summary", ""),
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+    })
 
 
 @bp_stock.route("/adjust", methods=["POST"])

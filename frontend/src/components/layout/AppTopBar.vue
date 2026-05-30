@@ -1,62 +1,62 @@
 <template>
   <div class="bt-top-bar d-flex justify-content-between align-items-center py-1 px-2" style="border-bottom:1px solid var(--bt-gray-200)">
-    <button class="bt-sidebar-toggle btn btn-sm btn-outline-secondary" @click="$emit('toggle-sidebar')" title="侧边栏">
-      <i class="bi bi-list"></i>
-    </button>
-    <div class="flex-grow-1 d-flex justify-content-end">
-      <div class="input-group input-group-sm" style="max-width:350px;position:relative" id="globalSearchWrap">
-        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-        <input class="form-control border-start-0"
-               v-model="searchQuery"
-               placeholder="搜索工单号/客户/设备/序列号..."
-               style="font-size:13px"
-               @keydown.enter="doSearch"
-               @input="onSearchInput"
-               @keydown.down.prevent="highlightNext"
-               @keydown.up.prevent="highlightPrev"
-               @keydown.escape="showResults = false"
-               @focus="onSearchFocus" />
-        <kbd class="position-absolute d-none d-sm-inline-flex align-items-center"
-             style="right:8px;top:50%;transform:translateY(-50%);font-size:10px;padding:1px 5px;border-radius:3px;border:1px solid var(--bt-gray-200);color:var(--bt-gray-400);pointer-events:none;background:var(--bt-gray-50);z-index:3">Ctrl+K</kbd>
-        <div id="searchResults" class="list-group shadow-sm" v-show="showResults"
-             style="position:absolute;top:100%;left:0;right:0;z-index:9999;max-height:400px;overflow-y:auto;border-radius:0 0 8px 8px;background:var(--card-bg);border:1px solid var(--card-border)">
-          <div v-if="searchLoading" class="px-3 py-2 text-muted small">
-            <i class="bi bi-arrow-repeat spin me-1"></i>搜索中...
-          </div>
-          <template v-else-if="searchResults.length > 0">
-            <div class="dropdown-header small text-muted px-3 py-2" style="background:var(--bt-gray-50)"
-                 v-for="(group, gIdx) in groupedResults" :key="gIdx">
-              <i :class="group.icon" class="me-1"></i>{{ group.label }} ({{ group.items.length }})
-              <a v-for="(item, idx) in group.items" :key="idx" class="list-group-item list-group-item-action px-3 py-2"
-                 :class="{ active: highlightedIdx === globalIndex(gIdx, idx) }"
-                 :style="{fontSize:'13px',borderLeft:0,borderRight:0,cursor:'pointer'}"
-                 @click="navigateTo(item)" @mouseenter="highlightedIdx = globalIndex(gIdx, idx)"
-                 v-html="formatSearchItem(item, searchQuery)">
-              </a>
+    <div class="flex-grow-1 d-flex align-items-center">
+      <AppQuickBar />
+      <div class="ms-auto d-flex align-items-center">
+        <div class="input-group input-group-sm" style="max-width:350px;position:relative" id="globalSearchWrap">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+          <input class="form-control border-start-0"
+                 v-model="searchQuery"
+                 placeholder="搜索工单号/客户/设备/序列号..."
+                 style="font-size:13px"
+                 @keydown.enter="doSearch"
+                 @input="onSearchInput"
+                 @keydown.down.prevent="highlightNext"
+                 @keydown.up.prevent="highlightPrev"
+                 @keydown.escape="showResults = false"
+                 @focus="onSearchFocus" />
+          <kbd class="position-absolute d-none d-sm-inline-flex align-items-center"
+               style="right:8px;top:50%;transform:translateY(-50%);font-size:10px;padding:1px 5px;border-radius:3px;border:1px solid var(--bt-gray-200);color:var(--bt-gray-400);pointer-events:none;background:var(--bt-gray-50);z-index:3">Ctrl+K</kbd>
+          <div id="searchResults" class="list-group shadow-sm" v-show="showResults"
+               style="position:absolute;top:100%;left:0;right:0;z-index:9999;max-height:400px;overflow-y:auto;border-radius:0 0 8px 8px;background:var(--card-bg);border:1px solid var(--card-border)">
+            <div v-if="searchLoading" class="px-3 py-2 text-muted small">
+              <i class="bi bi-arrow-repeat spin me-1"></i>搜索中...
             </div>
-            <div class="text-center py-1 border-top">
-              <a class="text-decoration-none small text-primary px-3 py-2 d-block" style="font-size:12px;cursor:pointer"
-                 @click="doSearch">
-                查看全部结果 <i class="bi bi-arrow-right"></i>
-              </a>
+            <template v-else-if="searchResults.length > 0">
+              <div class="dropdown-header small text-muted px-3 py-2" style="background:var(--bt-gray-50)"
+                   v-for="(group, gIdx) in groupedResults" :key="gIdx">
+                <i :class="group.icon" class="me-1"></i>{{ group.label }} ({{ group.items.length }})
+                <a v-for="(item, idx) in group.items" :key="idx" class="list-group-item list-group-item-action px-3 py-2"
+                   :class="{ active: highlightedIdx === globalIndex(gIdx, idx) }"
+                   :style="{fontSize:'13px',borderLeft:0,borderRight:0,cursor:'pointer'}"
+                   @click="navigateTo(item)" @mouseenter="highlightedIdx = globalIndex(gIdx, idx)"
+                   v-html="formatSearchItem(item, searchQuery)">
+                </a>
+              </div>
+              <div class="text-center py-1 border-top">
+                <a class="text-decoration-none small text-primary px-3 py-2 d-block" style="font-size:12px;cursor:pointer"
+                   @click="doSearch">
+                  查看全部结果 <i class="bi bi-arrow-right"></i>
+                </a>
+              </div>
+            </template>
+            <div v-else class="px-3 py-3 text-muted text-center" style="font-size:13px">
+              <i class="bi bi-emoji-neutral me-1"></i>无匹配结果
             </div>
-          </template>
-          <div v-else class="px-3 py-3 text-muted text-center" style="font-size:13px">
-            <i class="bi bi-emoji-neutral me-1"></i>无匹配结果
           </div>
         </div>
+
+        <button class="bt-theme-toggle ms-2" @click="app.toggleTheme()" :title="themeTitle">
+          <i :class="themeIcon"></i>
+        </button>
+
+        <a class="position-relative ms-2 text-decoration-none" title="通知中心" @click.prevent="checkNotif" style="cursor:pointer">
+          <i class="bi bi-bell fs-6" :class="notifCount > 0 ? 'text-primary' : 'text-muted'"></i>
+          <span v-if="notifCount > 0"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                style="font-size:9px">{{ notifCount > 99 ? '99+' : notifCount }}</span>
+        </a>
       </div>
-
-      <button class="bt-theme-toggle ms-2" @click="app.toggleTheme()" :title="themeTitle">
-        <i :class="themeIcon"></i>
-      </button>
-
-      <a class="position-relative ms-2 text-decoration-none" title="通知中心" @click.prevent="checkNotif" style="cursor:pointer">
-        <i class="bi bi-bell fs-6" :class="notifCount > 0 ? 'text-primary' : 'text-muted'"></i>
-        <span v-if="notifCount > 0"
-              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-              style="font-size:9px">{{ notifCount > 99 ? '99+' : notifCount }}</span>
-      </a>
     </div>
   </div>
 </template>
@@ -67,6 +67,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { searchApi } from '@/api/search'
 import { reminderApi } from '@/api/reminders'
+import AppQuickBar from './AppQuickBar.vue'
 
 const router = useRouter()
 const app = useAppStore()
@@ -248,16 +249,6 @@ function checkNotif() {
 </script>
 
 <style scoped>
-.bt-sidebar-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  font-size: 18px;
-  border-radius: 8px;
-}
 .spin { animation: rotate 1s linear infinite; }
 @keyframes rotate { to { transform: rotate(360deg); } }
 </style>

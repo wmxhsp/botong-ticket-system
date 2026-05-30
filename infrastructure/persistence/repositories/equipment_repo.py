@@ -32,7 +32,8 @@ class SqliteEquipmentRepository:
         has = self._has_column("equipment", "is_deleted")
         if not has:
             return "1=1"
-        return f"({alias}.is_deleted IS NULL OR {alias}.is_deleted = 0)"
+        prefix = f"{alias}." if alias else ""
+        return f"({prefix}is_deleted IS NULL OR {prefix}is_deleted = 0)"
 
     @contextmanager
     def _ensure_conn(self):

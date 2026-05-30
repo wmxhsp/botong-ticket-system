@@ -2,6 +2,7 @@ import logging
 from flask import Blueprint, request, jsonify
 
 from infrastructure.di.service_injection import inject_service
+from api.v1.responses import ApiResponse
 
 logger = logging.getLogger(__name__)
 
@@ -34,18 +35,31 @@ def dashboard_summary():
 
             result["recommendations"] = svc.build_recommendations()
 
-            return jsonify(result)
+            return ApiResponse.success(result)
 
-        return jsonify(svc.build_legacy_dashboard(
+        return ApiResponse.success(svc.build_legacy_dashboard(
             month=request.args.get("month")))
 
     except Exception as e:
         logger.warning(f"Dashboard summary failed, falling back to legacy: {e}")
         try:
-            return jsonify(svc.build_legacy_dashboard(
+            return ApiResponse.success(svc.build_legacy_dashboard(
                 month=request.args.get("month")))
         except Exception as e2:
-            return jsonify({"error": f"仪表盘获取失败: {str(e2)}"}), 500
+            return ApiResponse.server_error(f"仪表盘获取失败: {str(e2)}")
+
+
+@bp_dashboard.route("/today")
+def dashboard_today():
+    try:
+        svc = inject_service("dashboard_service")
+        if svc is None:
+            return ApiResponse.error("服务未初始化", 500)
+        result = svc.get_today_stats()
+        return ApiResponse.success(result)
+    except Exception as e:
+        logger.error(f"dashboard_today error: {e}", exc_info=True)
+        return ApiResponse.server_error(f"获取今日统计失败: {str(e)}")
 
 
 def register_blueprint(app):

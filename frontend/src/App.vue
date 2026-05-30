@@ -8,33 +8,43 @@
   </router-view>
   <ToastContainer />
   <ConfirmDialog
-    :visible="confirm.visible"
-    :title="confirm.config.title"
-    :message="confirm.config.message"
-    :type="confirm.config.type"
-    :confirm-text="confirm.config.confirmText"
-    :show-input="confirm.config.showInput"
-    :input-placeholder="confirm.config.inputPlaceholder"
-    @confirm="confirm.onConfirm"
-    @cancel="confirm.onCancel"
+    :visible="confirmVisible"
+    :title="confirmConfig.title"
+    :message="confirmConfig.message"
+    :type="confirmConfig.type"
+    :confirm-text="confirmConfig.confirmText"
+    :show-input="confirmConfig.showInput"
+    :input-placeholder="confirmConfig.inputPlaceholder"
+    @confirm="handleConfirm"
+    @cancel="handleCancel"
   />
+  <CommandPalette />
+  <KeyboardShortcuts ref="shortcutsRef" />
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { useAppStore } from '@/stores/app'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchCsrfToken } from '@/api/client'
 import ToastContainer from '@/components/common/ToastContainer.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import CommandPalette from '@/components/common/CommandPalette.vue'
+import KeyboardShortcuts from '@/components/common/KeyboardShortcuts.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useCommandPalette } from '@/composables/useCommandPalette'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { KEEP_ALIVE_NAMES } from '@/constants/keepAlive'
 
 const app = useAppStore()
 const route = useRoute()
+const router = useRouter()
 const { show: showToast } = useToast()
-const confirm = useConfirm()
+const { visible: confirmVisible, config: confirmConfig, onConfirm: handleConfirm, onCancel: handleCancel } = useConfirm()
+const { toggle: toggleCommandPalette } = useCommandPalette()
+const { setupGlobalShortcuts, navigateTo } = useKeyboardShortcuts()
+const shortcutsRef = ref(null)
 
 const PAGE_TITLES = {
   'Login': '登录 - 博通',
@@ -74,29 +84,29 @@ onMounted(() => {
   }
   window.addEventListener('api-error', apiErrorHandler)
 
-  const keydownHandler = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault()
-      const searchInput = document.querySelector('#globalSearchWrap input')
-      if (searchInput) { searchInput.focus(); searchInput.select() }
-    }
-    if ((e.ctrlKey || e.metaKey) && e.key === '?') {
-      e.preventDefault()
-      showKeyboardShortcuts()
-    }
-  }
-  document.addEventListener('keydown', keydownHandler)
+  setupGlobalShortcuts({
+    onSearch: () => {
+      toggleCommandPalette()
+    },
+    onNewTicket: () => {
+      navigateTo('/tickets/new')
+    },
+    onQuickSettle: () => {
+      showToast('快速结算：请先在工单列表选择工单', 'info', 3000)
+    },
+    onTodayView: () => {
+      navigateTo('/')
+    },
+    onHelp: () => {
+      shortcutsRef.value?.show()
+    },
+  })
 
   onUnmounted(() => {
     mq.removeEventListener('change', mqHandler)
     window.removeEventListener('api-error', apiErrorHandler)
-    document.removeEventListener('keydown', keydownHandler)
   })
 })
-
-function showKeyboardShortcuts() {
-  showToast('Ctrl+K: 搜索 | Ctrl+?: 帮助', 'info', 5000)
-}
 </script>
 
 <style>

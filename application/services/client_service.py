@@ -315,7 +315,7 @@ class ClientService:
         ticket_svc = self._ensure_svc("_ticket_service", "ticket_service")
         finance_svc = self._ensure_svc("_finance_service", "finance_service")
         equip_svc = self._ensure_svc("_equipment_service", "equipment_service")
-        tickets_data = ticket_svc.list_tickets(client=client_name)
+        tickets_data = ticket_svc.list_tickets(client=client_name, per_page=5)
         tickets = tickets_data["tickets"] if isinstance(tickets_data, dict) else tickets_data
         equipment = equip_svc.list_by_client(client_name) if equip_svc and hasattr(equip_svc, 'list_by_client') else []
         income = finance_svc.get_client_income_records(client_name) if finance_svc and hasattr(finance_svc, 'get_client_income_records') else []

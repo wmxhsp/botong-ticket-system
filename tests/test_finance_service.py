@@ -78,8 +78,8 @@ class TestFinanceService:
         assert isinstance(profitability, list)
         for p in profitability:
             assert "client" in p
-            assert "total_income" in p
-            assert "total_expense" in p
+            assert "revenue" in p
+            assert "expense" in p
 
     def test_finance_dashboard_returns_all_keys(self):
         """总览看板应包含所有关键指标"""

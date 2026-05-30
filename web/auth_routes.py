@@ -2,8 +2,10 @@
 博通 (Botong) — 认证路由模块
 
 提供:
-  - POST /login          — 密码登录
-  - GET  /logout         — 退出登录
+  - POST /api/v1/login           — API 密码登录
+  - GET  /login                  — 重定向到 SPA 登录页（浏览器）或返回 JSON（API）
+  - GET  /api/v1/logout          — API 退出登录
+  - GET  /logout                 — 退出登录
   - POST /api/v1/auth/change-password — 修改密码
 """
 
@@ -22,8 +24,8 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def register_auth_routes(app):
     from flask import jsonify, request, make_response, redirect as _rd
 
-    @app.route("/login", methods=["POST"])
-    def _login_spa():
+    @app.route("/api/v1/login", methods=["POST"])
+    def _api_login():
         from web.middleware.auth import _load_access_pwd, _sign_token, _ACCESS_COOKIE, _verify_password
 
         current_pwd = _load_access_pwd()
@@ -42,6 +44,23 @@ def register_auth_routes(app):
                             samesite="Lax", secure=secure)
             return resp
         return jsonify({"error": "密码错误"}), 401
+
+    @app.route("/api/v1/logout")
+    def _api_logout():
+        resp = make_response(jsonify({"ok": True}))
+        secure = request.is_secure or request.headers.get("X-Forwarded-Proto") == "https"
+        resp.set_cookie("bt_auth", "", max_age=0, httponly=True,
+                        samesite="Lax", secure=secure)
+        resp.set_cookie(_ACCESS_COOKIE, "", max_age=0, httponly=True,
+                        samesite="Lax", secure=secure)
+        return resp
+
+    @app.route("/login")
+    def _login_redirect():
+        """GET /login — API 请求返回 JSON，浏览器请求重定向"""
+        if request.is_json or request.headers.get('Accept', '').startswith('application/json'):
+            return jsonify({"ok": False, "error": "未登录"}), 401
+        return _rd("/app/login")
 
     @app.route("/logout")
     def _logout():
