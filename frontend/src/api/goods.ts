@@ -1,11 +1,13 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
+import type { Goods } from '@/types'
 
 export const goodsApi = {
-  list(params = {}) {
+  list(params: Record<string, any> = {}) {
     return client.get('/goods/', { params })
   },
 
-  create(data) {
+  create(data: any) {
     return client.post('/goods/', data)
   },
 
@@ -13,11 +15,11 @@ export const goodsApi = {
     return client.get(`/goods/${goodsId}`)
   },
 
-  update(goodsId, data) {
+  update(goodsId: number | string, data: any) {
     return client.put(`/goods/${goodsId}`, data)
   },
 
-  delete(goodsId) {
+  delete(goodsId: number | string) {
     return client.delete(`/goods/${goodsId}`)
   },
 

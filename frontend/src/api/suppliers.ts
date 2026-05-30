@@ -1,23 +1,25 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
+import type { Supplier } from '@/types'
 
 export const supplierApi = {
-  list(params = {}) {
+  list(params: Record<string, any> = {}) {
     return client.get('/suppliers/', { params })
   },
   /** 供应商统计 */
   getStats() {
     return client.get('/suppliers/stats')
   },
-  create(data) {
+  create(data: any) {
     return client.post('/suppliers/', data)
   },
-  getById(id) {
+  getById(id: number | string) {
     return client.get(`/suppliers/${id}`)
   },
-  update(id, data) {
+  update(id: number | string, data: any) {
     return client.put(`/suppliers/${id}`, data)
   },
-  delete(id) {
+  delete(id: number | string) {
     return client.delete(`/suppliers/${id}`)
   },
 }

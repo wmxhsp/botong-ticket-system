@@ -1,4 +1,5 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
 
 /**
  * 统计/仪表盘 API

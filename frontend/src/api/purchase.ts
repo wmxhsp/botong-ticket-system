@@ -1,11 +1,13 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
+import type { PurchaseOrder } from '@/types'
 
 export const purchaseApi = {
   list() {
     return client.get('/purchase/')
   },
 
-  create(data) {
+  create(data: any) {
     return client.post('/purchase/', data)
   },
 
@@ -17,11 +19,11 @@ export const purchaseApi = {
     return client.get(`/purchase/${poId}`)
   },
 
-  update(poId, data) {
+  update(poId: number | string, data: any) {
     return client.put(`/purchase/${poId}`, data)
   },
 
-  delete(poId) {
+  delete(poId: number | string) {
     return client.delete(`/purchase/${poId}`)
   },
 

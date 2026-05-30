@@ -1,4 +1,5 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
 
 /**
  * 企业微信推送配置 API

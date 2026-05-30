@@ -1,7 +1,9 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
+import type { Todo } from '@/types'
 
 export const todoApi = {
-  list(params = {}) {
+  list(params: Record<string, any> = {}) {
     return client.get('/todos/', { params })
   },
   getStats() {
@@ -27,17 +29,17 @@ export const todoApi = {
   getBySource(params = {}) {
     return client.get('/todos/by-source', { params })
   },
-  create(data) {
+  create(data: any) {
     return client.post('/todos/', data)
   },
-  update(id, data) {
+  update(id: number | string, data: any) {
     return client.put(`/todos/${id}`, data)
   },
   /** 切换完成状态 */
   toggle(id) {
     return client.put(`/todos/${id}/toggle`)
   },
-  delete(id) {
+  delete(id: number | string) {
     return client.delete(`/todos/${id}`)
   },
   /** 子任务列表 */

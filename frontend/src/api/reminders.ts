@@ -1,4 +1,6 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
+import type { Reminder } from '@/types'
 
 export const reminderApi = {
   getAll() {

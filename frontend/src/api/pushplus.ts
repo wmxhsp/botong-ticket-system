@@ -1,4 +1,5 @@
 import client from './client'
+import type { ApiResponse } from './schemas'
 
 /**
  * PushPlus 推送配置 API
