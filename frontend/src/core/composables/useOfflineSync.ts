@@ -1,4 +1,4 @@
-import { watch, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useSyncStore } from '@/core/stores/sync'
 import { ticketApi } from '@/api/tickets'
 import { clientApi } from '@/api/clients'
@@ -99,8 +99,9 @@ export function useOfflineSync() {
       syncStore.removeChange(change.id)
       
       return true
-    } catch (error) {
-      const errorMsg = `Failed to sync ${change.operation} ${change.entityType} #${change.id}: ${error.message}`
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMsg = `Failed to sync ${change.operation} ${change.entityType} #${change.id}: ${errorMessage}`
       console.error('[OfflineSync]', errorMsg)
       syncErrors.value.push(errorMsg)
       return false
@@ -198,8 +199,8 @@ export function useOfflineSync() {
       const api = apiMap[entityType]
       if (!api) return false
       
-      // 获取服务器上的最新版本
-      const serverData = await api.get(entityId)
+      // 获取服务器上的最新版本（用于冲突检测）
+      await api.get(entityId)
       
       // 这里可以实现更复杂的冲突检测逻辑
       // 例如比较更新时间戳、版本号等

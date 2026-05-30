@@ -1,7 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { ticketApi } from '@/modules/ticket/api'
 import { clientApi } from '@/modules/client/api'
-import type { TicketListItem } from '@/core/types/api'
 
 export interface CommandItem {
   id: string
@@ -23,15 +22,19 @@ export function useCommandPalette() {
   // 加载状态
   const isLoading = ref(false)
   
-  // 搜索结果
-  const results = computed(() => {
+  // 搜索结果（使用ref存储异步结果）
+  const results = ref<CommandItem[]>([])
+  
+  // 搜索查询变化时重新加载
+  async function refreshResults() {
     if (!searchQuery.value.trim()) {
       // 无搜索时显示最近使用和常用命令
-      return getRecentAndCommonCommands()
+      results.value = getRecentAndCommonCommands()
+    } else {
+      // 有搜索时执行过滤
+      results.value = await filterCommands(searchQuery.value)
     }
-    
-    return filterCommands(searchQuery.value)
-  })
+  }
   
   // 打开命令面板
   function open() {
@@ -39,6 +42,7 @@ export function useCommandPalette() {
     searchQuery.value = ''
     selectedIndex.value = 0
     loadInitialData()
+    refreshResults()
   }
   
   // 关闭命令面板
@@ -96,14 +100,15 @@ export function useCommandPalette() {
     
     try {
       // 加载最近的工单
-      const tickets = await ticketApi.list({ page: 1, page_size: 10 })
+      const response = await ticketApi.list({ page: 1, page_size: 10 })
+      const tickets = response.data?.items || []
       
       commands.value = [
         // 快捷命令
         ...getQuickCommands(),
         
         // 最近工单
-        ...tickets.items.map(ticket => ({
+        ...tickets.map((ticket: any) => ({
           id: `ticket-${ticket.id}`,
           type: 'ticket' as const,
           title: `${ticket.ticket_no} - ${ticket.client}`,
@@ -121,7 +126,7 @@ export function useCommandPalette() {
   }
   
   // 过滤命令
-  async function filterCommands(query: string) {
+  async function filterCommands(query: string): Promise<CommandItem[]> {
     isLoading.value = true
     
     try {
@@ -129,13 +134,14 @@ export function useCommandPalette() {
       
       // 1. 搜索工单
       if (query.length >= 2) {
-        const tickets = await ticketApi.list({ 
+        const ticketResponse = await ticketApi.list({ 
           keyword: query,
           page: 1, 
           page_size: 10 
         })
+        const tickets = ticketResponse.data?.items || []
         
-        results.push(...tickets.items.map(ticket => ({
+        results.push(...tickets.map((ticket: any) => ({
           id: `ticket-${ticket.id}`,
           type: 'ticket' as const,
           title: `${ticket.ticket_no} - ${ticket.client}`,
@@ -146,13 +152,14 @@ export function useCommandPalette() {
         })))
         
         // 2. 搜索客户
-        const clients = await clientApi.list({
+        const clientResponse = await clientApi.list({
           keyword: query,
           page: 1,
           page_size: 5
         })
+        const clients = clientResponse.data?.items || []
         
-        results.push(...clients.items.map(client => ({
+        results.push(...clients.map((client: any) => ({
           id: `client-${client.id}`,
           type: 'client' as const,
           title: client.name,
@@ -319,13 +326,20 @@ export function useCommandPalette() {
   // 通用导航
   function navigateTo(path: string) {
     // 使用Vue Router
-    import('@/router').then(({ router }) => {
+    import('@/router').then((routerModule) => {
+      const router = routerModule.default
       router.push(path)
     })
   }
   
   // 初始化
   loadRecentCommands()
+  
+  // 监听搜索查询变化
+  watch(searchQuery, () => {
+    selectedIndex.value = 0
+    refreshResults()
+  })
   
   return {
     isOpen,

@@ -1,22 +1,21 @@
 import client from './client'
-import type { ApiResponse } from './schemas'
 
 /**
  * 企业微信推送配置 API
  */
 export const wecomApi = {
   /** 获取配置 */
-  getConfig() {
+  getConfig(): Promise<any> {
     return client.get('/wecom/config')
   },
 
   /** 更新配置 */
-  updateConfig(data) {
+  updateConfig(data: Record<string, any>): Promise<any> {
     return client.post('/wecom/config', data)
   },
 
   /** 发送测试消息 */
-  sendTest(data = {}) {
+  sendTest(data: Record<string, any> = {}): Promise<any> {
     return client.post('/wecom/test', data)
   },
 }
