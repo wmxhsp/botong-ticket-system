@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-05-31T01:40:05.707980",
+  "duration_seconds": 0.03374,
+  "total": 12,
+  "passed": 11,
+  "failed": 1,
+  "results": [
+    {
+      "task": "1.1",
+      "name": "命令面板",
+      "status": "PASS",
+      "file_size": 6734
+    },
+    {
+      "task": "1.2",
+      "name": "快捷键系统",
+      "status": "PASS",
+      "file_size": 4342
+    },
+    {
+      "task": "1.5",
+      "name": "防抖机制",
+      "status": "PASS",
+      "file_size": 2184
+    },
+    {
+      "task": "2.2",
+      "name": "触觉反馈",
+      "status": "PASS",
+      "file_size": 3129
+    },
+    {
+      "task": "3.1",
+      "name": "离线同步",
+      "status": "PASS",
+      "file_size": 6550
+    },
+    {
+      "task": "3.2",
+      "name": "语音输入",
+      "status": "PASS",
+      "file_size": 5733
+    },
+    {
+      "task": "3.3",
+      "name": "批量操作",
+      "status": "PASS",
+      "file_size": 5509
+    },
+    {
+      "task": "2.1",
+      "name": "骨架屏",
+      "status": "PASS",
+      "file_size": 4843
+    },
+    {
+      "task": "1.4",
+      "name": "API字段过滤实现",
+      "status": "PASS"
+    },
+    {
+      "task": "1.4",
+      "name": "API字段过滤",
+      "status": "FAIL",
+      "reason": "API返回错误: 401"
+    },
+    {
+      "task": "3.5",
+      "name": "API响应时间",
+      "status": "PASS",
+      "metrics": {
+        "avg_ms": 4.6,
+        "max_ms": 5.8,
+        "min_ms": 4.0,
+        "target_ms": 500
+      }
+    },
+    {
+      "task": "DB",
+      "name": "数据库查询性能",
+      "status": "PASS",
+      "metrics": {
+        "ticket_count": 84,
+        "query_time_ms": 0.45,
+        "index_count": 11
+      }
+    }
+  ]
+}
