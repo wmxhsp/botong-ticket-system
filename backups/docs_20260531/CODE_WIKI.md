@@ -1,6 +1,6 @@
 # 博通售后管理系统 — Code Wiki
 
-> 版本 4.0.0 | 单人运营 IT 运维服务管理平台 | 6周优化计划已完成
+> 版本 3.0.0 | 单人运营 IT 运维服务管理平台
 > 核心利润 = 劳务差价 + 商品差价
 
 ---
@@ -46,7 +46,6 @@
 - [11. 部署与运维](#11-部署与运维)
 - [12. 测试体系](#12-测试体系)
 - [13. 关键业务流程](#13-关键业务流程)
-  - [13.0 性能优化功能（v4.0）](#130-性能优化功能v40)
   - [13.1 工单生命周期](#131-工单生命周期)
   - [13.2 金额计算流程](#132-金额计算流程)
   - [13.3 库存出入库流程](#133-库存出入库流程)
@@ -103,9 +102,6 @@
 | Vite | ^5.4 | 构建工具 |
 | Vitest | ^4.1 | 单元测试 |
 | TypeScript | ^6.0 | 类型检查 |
-| vue-virtual-scroller | ^2.0.0-beta.8 | 虚拟滚动（性能优化） |
-| VueUse | ^10.x | 组合式工具函数库 |
-| Zod | ^3.x | Schema验证 |
 
 ### 数据库
 
@@ -852,8 +848,6 @@ Vue 应用入口，初始化顺序：
 
 ### 6.4 组合式函数 (composables/)
 
-#### 基础 Composables
-
 | 函数 | 文件 | 功能 |
 |------|------|------|
 | `useApi(apiFn)` | `useApi.js` | 通用 API 请求封装，自带 AbortController 请求取消、loading/error 状态 |
@@ -864,44 +858,6 @@ Vue 应用入口，初始化顺序：
 | `useInfiniteScroll(loadFn)` | `useInfiniteScroll.js` | 无限滚动加载 |
 | `usePagination(apiFn)` | `usePagination.js` | 分页逻辑封装 |
 | `useToast()` | `useToast.js` | Toast 消息通知（`showToast(msg, type)`） |
-
-#### 优化功能 Composables（v4.0）
-
-**核心层 TypeScript Composables** (`core/composables/`):
-
-| 函数 | 文件 | 功能 | 完成日期 |
-|------|------|------|----------|
-| `useCommandPalette()` | `useCommandPalette.ts` | 命令面板（Cmd+K），全局搜索工单/客户/快捷命令 | 2026-05-31 |
-| `useKeyboardShortcuts()` | `useKeyboardShortcuts.ts` | 全局快捷键系统（Ctrl+N/S/T等） | 2026-05-31 |
-| `useDebounce()` | `useDebounce.ts` | 统一防抖机制（300ms延迟） | 2026-05-31 |
-| `useHapticFeedback()` | `useHapticFeedback.ts` | 触觉反馈（移动端震动） | 2026-05-31 |
-| `useOfflineSync()` | `useOfflineSync.ts` | 离线同步机制（网络检测+自动同步） | 2026-05-31 |
-| `useVoiceInput()` | `useVoiceInput.ts` | 语音输入（Web Speech API，支持中文） | 2026-05-31 |
-| `useBatchOperations()` | `useBatchOperations.ts` | 批量操作（多选/全选/批量删除/更新） | 2026-05-31 |
-
-**使用示例**:
-
-```typescript
-// 命令面板
-import { useCommandPalette } from '@/core/composables/useCommandPalette'
-const { open, close, search } = useCommandPalette()
-
-// 防抖
-import { useDebounce } from '@/core/composables/useDebounce'
-const { debouncedValue, setValue } = useDebounce(300)
-
-// 离线同步
-import { useOfflineSync } from '@/core/composables/useOfflineSync'
-const { isOnline, syncPendingChanges, setupNetworkListeners } = useOfflineSync()
-
-// 语音输入
-import { useVoiceInput } from '@/core/composables/useVoiceInput'
-const { isListening, transcript, startListening, stopListening } = useVoiceInput({ lang: 'zh-CN' })
-
-// 批量操作
-import { useBatchOperations } from '@/core/composables/useBatchOperations'
-const { selectedIds, hasSelection, toggleSelection, batchDelete } = useBatchOperations<Ticket>()
-```
 
 ### 6.5 组件体系
 
@@ -1516,59 +1472,6 @@ cd frontend && npx vitest run
 ---
 
 ## 13. 关键业务流程
-
-### 13.0 性能优化功能（v4.0）
-
-#### 核心优化成果
-
-**阶段1: P0核心瓶颈修复**
-- **命令面板**: Cmd+K全局搜索，支持工单/客户/快捷命令
-- **快捷键系统**: Ctrl+N/S/T等全局快捷键，提升操作效率
-- **虚拟滚动**: vue-virtual-scroller，DOM节点减少90%，渲染速度提升10倍
-- **API字段过滤**: fields参数支持，响应体积减少60%
-- **防抖机制**: 统一300ms防抖，减少无效API调用
-
-**阶段2: P1体验增强**
-- **骨架屏**: LoadingSkeleton组件增强，shimmer动画，加载感知速度提升80%
-- **触觉反馈**: useHapticFeedback，移动端震动反馈
-- **深色模式**: CSS Transition平滑切换，0.3s过渡动画
-- **加载状态**: 完善的loading和error处理
-- **移动端布局**: 响应式优化，触摸区域≥44px
-
-**阶段3: P2高级功能**
-- **离线同步**: useOfflineSync，网络检测+自动同步，弱网环境可用
-- **语音输入**: useVoiceInput，Web Speech API，支持中文识别
-- **批量操作**: useBatchOperations，多选/全选/批量删除/更新
-- **数据导出**: CSV格式导出，UTF-8 BOM编码
-- **性能监控**: API平均响应时间4.6ms，数据库查询0.45ms
-
-#### 新增依赖
-
-```json
-{
-  "vue-virtual-scroller": "^2.0.0-beta.8"
-}
-```
-
-#### 性能指标
-
-| 指标 | 优化前 | 优化后 | 提升幅度 |
-|------|--------|--------|----------|
-| 工单列表渲染时间 | ~5000ms | ~500ms | 10倍 |
-| DOM节点数（100条） | ~100个 | ~10个 | 90%减少 |
-| API响应体积 | 100% | 40% | 60%减少 |
-| API平均响应时间 | - | 4.6ms | <500ms目标 |
-| 数据库查询时间 | - | 0.45ms | 优秀 |
-| FCP (首屏内容) | - | <1.5s | 达标 |
-| LCP (最大内容) | - | <2.5s | 达标 |
-
-#### 测试验证
-
-自动化测试脚本：`tests/test_optimizations.py`
-- 测试通过率：91.7% (11/12)
-- 详细报告：[tests/OPTIMIZATION_TEST_REPORT.md](tests/OPTIMIZATION_TEST_REPORT.md)
-
----
 
 ### 13.1 工单生命周期
 

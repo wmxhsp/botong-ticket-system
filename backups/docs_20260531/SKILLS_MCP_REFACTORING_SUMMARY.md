@@ -3,9 +3,6 @@
 ## 执行时间
 2026-05-31
 
-## 最终状态
-✅ **全部完成** - 技能体系已优化，MCP配置完善，文档更新完毕
-
 ---
 
 ## ✅ 已完成的工作
@@ -34,11 +31,11 @@
 - ✅ 删除 `transactions-and-uow.md`
 
 **4. 业务领域技能（2合1）**
-- ✅ 已增强 `ticket-domain-logic.md`（整合inventory-integrity内容）
+- ⚠️ 待增强 `ticket-domain-logic.md`（需整合inventory-integrity内容）
 - ✅ 删除 `inventory-integrity.md`
 
 **5. 任务编排技能（2合1）**
-- ✅ 已增强 `task-orchestration.md`（整合async-jobs内容）
+- ⚠️ 待增强 `task-orchestration.md`（需整合async-jobs内容）
 - ✅ 删除 `async-jobs.md`
 
 **阶段1成果**: 
@@ -80,16 +77,22 @@
 
 ---
 
-### 阶段3: 标准化格式（✅ 已完成）
+### 阶段3: 标准化格式（⚠️ 部分完成）
 
 **已完成的标准化**:
 - ✅ 所有新创建的技能都有统一元数据
-- ✅ 所有新技能都有“相关技能”章节
+- ✅ 所有新技能都有"相关技能"章节
 - ✅ 版本号统一为1.0.0
-- ✅ 维护人设置为“AI Assistant”
+- ✅ 维护人设置为"AI Assistant"
 - ✅ 添加最后更新日期
-- ✅ 剩余17个旧技能已批量更新元数据
-- ✅ 所有技能已补充“相关技能”字段
+
+**待完成的标准化**:
+- ⚠️ 需要为剩余的17个旧技能添加统一元数据
+- ⚠️ 需要为所有技能补充"相关技能"章节
+- ⚠️ 需要统一version号为1.0.0
+
+**建议的批量处理方式**:
+使用脚本批量更新元数据（见下方"后续建议"）
 
 ---
 
@@ -179,22 +182,144 @@
 
 ## ⚠️ 待完成工作
 
-### 全部工作已完成 ✅
+### 1. 增强2个技能文档
 
-所有计划中的任务均已执行完毕：
-- ✅ 技能合并和精简
-- ✅ 新技能创建
-- ✅ 元数据标准化
-- ✅ MCP使用指南编写
-- ✅ 文档更新
+**ticket-domain-logic.md**:
+需要整合inventory-integrity.md的内容：
+- 库存完整性保障
+- 库存扣减和回滚策略
+- 出入库记录追溯
+
+**task-orchestration.md**:
+需要整合async-jobs.md的内容：
+- 异步作业处理
+- 任务队列配置
+- 重试机制和幂等性
+
+**建议操作**:
+```bash
+# 读取已删除文件的内容（从Git历史恢复）
+git show HEAD:.trae/skills/inventory-integrity.md > /tmp/inventory.md
+git show HEAD:.trae/skills/async-jobs.md > /tmp/async.md
+
+# 手动整合到目标文件
+# 或使用search_replace工具追加内容
+```
+
+---
+
+### 2. 标准化剩余17个旧技能
+
+需要批量更新以下技能的元数据：
+- idempotency-and-concurrency.md
+- idempotency-playbook.md
+- finance-integration.md
+- skill-observability.md
+- mcp-deployment-security.md
+- api-module-best-practices.md
+- flask-testing-patterns.md
+- 以及7个目录型技能
+
+**标准化模板**:
+```markdown
+---
+title: skill-name
+priority: high|medium|low
+tags: [tag1, tag2]
+maintainer: AI Assistant
+version: 1.0.0
+read_only_db: false
+last_updated: 2026-05-31
+related_skills: [skill-a, skill-b]
+---
+```
+
+**建议的自动化脚本**:
+```python
+#!/usr/bin/env python3
+# scripts/update_skill_metadata.py
+
+import os
+import re
+from pathlib import Path
+
+SKILLS_DIR = Path('.trae/skills')
+
+def update_metadata(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # 检查是否已有完整元数据
+    if 'maintainer: AI Assistant' in content:
+        return  # 已更新
+    
+    # 提取现有title
+    title_match = re.search(r'title:\s*(.+)', content)
+    if not title_match:
+        return
+    
+    title = title_match.group(1).strip()
+    
+    # 构建新元数据
+    new_frontmatter = f"""---
+title: {title}
+priority: medium
+tags: []
+maintainer: AI Assistant
+version: 1.0.0
+read_only_db: false
+last_updated: 2026-05-31
+related_skills: []
+---
+"""
+    
+    # 替换旧元数据
+    content = re.sub(r'^---.*?---', new_frontmatter, content, flags=re.DOTALL)
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    print(f"Updated: {file_path}")
+
+# 遍历所有.md文件
+for md_file in SKILLS_DIR.glob('*.md'):
+    update_metadata(md_file)
+```
+
+---
+
+### 3. 补充"相关技能"章节
+
+需要为每个技能分析依赖关系，建立技能关联图。
+
+**建议方法**:
+1. 人工审查每个技能的内容
+2. 识别引用或相关的其他技能
+3. 在元数据中添加`related_skills`字段
+
+**示例**:
+```yaml
+related_skills: [frontend-best-practices, typescript-migration-guide]
+```
 
 ---
 
 ## 🎯 下一步行动建议
 
-### 全部完成 ✅
+### 立即执行（今天）
+1. ✅ 已完成主要合并和新技能创建
+2. ⏳ 增强ticket-domain-logic.md和task-orchestration.md
+3. ⏳ 运行批量元数据更新脚本
 
-所有计划任务已执行完毕，系统已处于最佳状态。
+### 明天完成
+4. ⏳ 人工审查并补充"相关技能"字段
+5. ⏳ 验证所有技能格式一致性
+6. ⏳ 测试MCP服务可用性
+
+### 本周内完成
+7. ⏳ 收集用户反馈
+8. ⏳ 根据反馈微调技能内容
+9. ⏳ 编写技能使用培训材料
 
 ---
 
@@ -274,7 +399,6 @@
 - ✅ 所有新技能有完整代码示例和验收标准
 - ✅ 消除重复内容，技能边界清晰
 - ✅ 建立技能关联关系
-- ✅ 所有技能元数据已标准化
 
 **MCP完善**:
 - ✅ 9个MCP服务配置完成
@@ -285,12 +409,10 @@
 - ✅ 明确的维护责任（AI Assistant）
 - ✅ 统一的格式规范
 - ✅ 完善的更新流程
-- ✅ 所有待办事项已完成
 
 最终形成一个**精简、高质量、易维护**的技能和MCP体系，为6周优化计划提供坚实的知识基础设施！
 
 ---
 
 **最后更新**: 2026-05-31  
-**维护人**: AI Assistant  
-**状态**: ✅ 全部完成
+**维护人**: AI Assistant
