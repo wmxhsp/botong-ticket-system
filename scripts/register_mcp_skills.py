@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-批量将 .trae/skills 下的技能注册到 MCP（HTTP API）。
+批量将 .qoder/skills 下的技能注册到 MCP（HTTP API）。
 用法：
   export MCP_API_URL=http://localhost:8080
   export MCP_API_KEY=your_key
@@ -40,9 +40,9 @@ def register(skill):
         return resp.status_code, resp.text
 
 def main():
-    skills = glob.glob('.trae/skills/*.md')
+    skills = glob.glob('.qoder/skills/*.md')
     if not skills:
-        print('未找到技能文件于 .trae/skills/')
+        print('未找到技能文件于 .qoder/skills/')
         return
     for s in skills:
         skill = load_skill(s)
